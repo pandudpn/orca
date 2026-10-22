@@ -12,8 +12,7 @@ import { openCodeAcpAccountBinding } from '../opencode/opencode-structured-accou
 import { scrubOpenCodeAcpEnvironment } from '../opencode/opencode-acp-environment'
 import { openCodeStoredUserMessagesReader } from '../opencode/opencode-acp-stored-messages'
 import type { AcpStoredUserMessagesReader } from './acp-recovery-history'
-import { ompMcpServerFiles, readAcpMcpServers } from './acp-mcp-servers'
-import type { McpServer } from './generated/acp-protocol.generated'
+import { ompMcpServerFiles, readAcpMcpServers, type AcpMcpServersRead } from './acp-mcp-servers'
 import type { TuiAgent } from '../../shared/tui-agent'
 import type { AgentSessionModelOption } from '../../shared/agent-session-wire'
 import type { AgentChatPermissionMode } from '../../shared/agent-chat-permission-mode'
@@ -175,7 +174,10 @@ export type AcpLaunchSpec = {
   /** The MCP servers a chat passes when it creates a session. In ACP the host owns MCP
    *  configuration: an agent that reads its own files already has them, and one that ignores
    *  them (OMP does, by design) needs them here. Absent passes none. */
-  mcpServers?(input: { cwd: string; env: Readonly<Record<string, string>> }): Promise<McpServer[]>
+  mcpServers?(input: {
+    cwd: string
+    env: Readonly<Record<string, string>>
+  }): Promise<AcpMcpServersRead>
 }
 
 const GROK_LAUNCH_SPEC: AcpLaunchSpec = {

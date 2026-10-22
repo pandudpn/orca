@@ -18,8 +18,24 @@ export type AcpMcpServerFile = {
   path: string
 }
 
+/** Why a definition the files carry is not sent. `disabled` covers the document's own denylist and
+ *  an entry the agent marked off; `cwd` is a stdio server whose directory ACP cannot express. */
+export type AcpMcpServerSkipReason = 'disabled' | 'cwd' | 'unsupported'
+
+export type AcpMcpServerSkip = {
+  name: string
+  reason: AcpMcpServerSkipReason
+}
+
+export type AcpMcpServersRead = {
+  servers: McpServer[]
+  skipped: AcpMcpServerSkip[]
+}
+
 const McpDocumentSchema = z.looseObject({
-  mcpServers: z.record(z.string(), z.unknown()).optional()
+  mcpServers: z.record(z.string(), z.unknown()).optional(),
+  /** The agent's own denylist, which it ranks above every definition, including an enabled one. */
+  disabledServers: z.array(z.string()).optional()
 })
 
 const McpServerEntrySchema = z.looseObject({
@@ -27,6 +43,7 @@ const McpServerEntrySchema = z.looseObject({
   command: z.string().optional(),
   args: z.array(z.string()).optional(),
   env: z.record(z.string(), z.string()).optional(),
+  cwd: z.string().optional(),
   url: z.string().optional(),
   headers: z.record(z.string(), z.string()).optional(),
   enabled: z.boolean().optional()
@@ -53,71 +70,103 @@ export function ompMcpServerFiles(input: {
   ]
 }
 
-/** Every server the files define, first definition per name winning. Unreadable and malformed
- *  files are skipped: a chat start must not fail because one optional file is broken. */
+/**
+ * Every server the files define, first definition per name winning, minus the ones that must not
+ * run. Unreadable and malformed files are skipped: a chat start must not fail because one optional
+ * file is broken.
+ *
+ * A name is reserved by the first file that defines it even when that definition is off, so a
+ * lower-priority file cannot re-enable what the higher-priority one disabled.
+ */
 export async function readAcpMcpServers(
   files: readonly AcpMcpServerFile[],
   env: Readonly<Record<string, string>> = {}
-): Promise<McpServer[]> {
-  const byName = new Map<string, McpServer>()
+): Promise<AcpMcpServersRead> {
+  const definitions = new Map<string, z.infer<typeof McpServerEntrySchema>>()
+  const denied = new Set<string>()
   for (const file of files) {
-    if (byName.size >= MCP_CONFIG_INSPECTION_MAX_SERVERS) {
-      break
-    }
     const content = await readFile(file.path, 'utf8').catch(() => null)
     if (content === null) {
       continue
     }
-    for (const server of parseAcpMcpServers(content, env)) {
-      if (byName.size >= MCP_CONFIG_INSPECTION_MAX_SERVERS) {
-        break
-      }
-      if (!byName.has(server.name)) {
-        byName.set(server.name, server)
+    const document = parseDocument(content)
+    for (const name of document.disabledServers) {
+      denied.add(name)
+    }
+    for (const [name, entry] of document.entries) {
+      if (!definitions.has(name)) {
+        definitions.set(name, entry)
       }
     }
   }
-  return [...byName.values()]
+  return selectServers(definitions, denied, env)
 }
 
-/** The ACP form of one MCP document. Entries the protocol cannot carry, or the agent marked
- *  disabled, are dropped rather than sent half-formed. */
+/** The ACP form of one MCP document, ignoring the denylist another file might carry. */
 export function parseAcpMcpServers(
   content: string,
   env: Readonly<Record<string, string>> = {}
-): McpServer[] {
+): AcpMcpServersRead {
+  const document = parseDocument(content)
+  return selectServers(document.entries, new Set(document.disabledServers), env)
+}
+
+function parseDocument(content: string): {
+  entries: Map<string, z.infer<typeof McpServerEntrySchema>>
+  disabledServers: readonly string[]
+} {
   let parsed: unknown
   try {
     parsed = JSON.parse(content)
   } catch {
-    return []
+    return { entries: new Map(), disabledServers: [] }
   }
   const document = McpDocumentSchema.safeParse(parsed)
-  if (!document.success) {
-    return []
+  if (!document.success || !document.data.mcpServers) {
+    return { entries: new Map(), disabledServers: document.data?.disabledServers ?? [] }
   }
-  const servers = document.data.mcpServers
-  if (!servers) {
-    return []
-  }
-  const result: McpServer[] = []
-  for (const [name, raw] of Object.entries(servers)) {
-    if (result.length >= MCP_CONFIG_INSPECTION_MAX_SERVERS) {
-      break
-    }
+  const entries = new Map<string, z.infer<typeof McpServerEntrySchema>>()
+  for (const [name, raw] of Object.entries(document.data.mcpServers)) {
     if (!isMcpConfigInspectionNameWithinLimit(name)) {
       continue
     }
     const entry = McpServerEntrySchema.safeParse(raw)
-    if (!entry.success) {
-      continue
-    }
-    const server = toAcpServer(name, entry.data, env)
-    if (server) {
-      result.push(server)
+    if (entry.success) {
+      entries.set(name, entry.data)
     }
   }
-  return result
+  return { entries, disabledServers: document.data.disabledServers ?? [] }
+}
+
+function selectServers(
+  definitions: ReadonlyMap<string, z.infer<typeof McpServerEntrySchema>>,
+  denied: ReadonlySet<string>,
+  env: Readonly<Record<string, string>>
+): AcpMcpServersRead {
+  const servers: McpServer[] = []
+  const skipped: AcpMcpServerSkip[] = []
+  for (const [name, entry] of definitions) {
+    if (servers.length >= MCP_CONFIG_INSPECTION_MAX_SERVERS) {
+      break
+    }
+    if (denied.has(name) || entry.enabled === false) {
+      skipped.push({ name, reason: 'disabled' })
+      continue
+    }
+    if (entry.cwd !== undefined) {
+      // ACP's stdio server has no working directory, and starting it here would give it the
+      // agent's instead — a different program than the one the person configured.
+      skipped.push({ name, reason: 'cwd' })
+      continue
+    }
+    const server = toAcpServer(name, entry, env)
+    if (server) {
+      servers.push(server)
+    } else {
+      skipped.push({ name, reason: 'unsupported' })
+    }
+  }
+  return { servers, skipped }
 }
 
 function toAcpServer(
@@ -125,9 +174,6 @@ function toAcpServer(
   entry: z.infer<typeof McpServerEntrySchema>,
   env: Readonly<Record<string, string>>
 ): McpServer | null {
-  if (entry.enabled === false) {
-    return null
-  }
   const type = entry.type ?? 'stdio'
   if (type === 'http' || type === 'sse') {
     const url = entry.url ? expandEnv(entry.url, env) : ''
