@@ -21,6 +21,8 @@ import type { AcpStructuredOptions } from './acp-structured-options'
 import type { AcpStructuredPrompts } from './acp-structured-prompts'
 import type { AcpStructuredSessionAdapterDeps } from './acp-structured-session-adapter-deps'
 import { AcpStructuredTurns, type AcpStructuredTurnsDeps } from './acp-structured-turns'
+import type { AcpLaunchSpec } from './acp-launch-specs'
+import type { McpServer } from './generated/acp-protocol.generated'
 import {
   assertAcpStartingSession,
   isAcpReadySession,
@@ -62,6 +64,9 @@ export async function initializeAcpStructuredSession(
     advertised: (initialized.authMethods ?? []).map((method) => method.id),
     env: launch.env
   })
+  // Read on the machine the agent runs on, before the session starts. A missing or broken file
+  // must not cost the chat its session, so the resolver never fails the start.
+  const mcpServers = await readSpecMcpServers(spec, launch)
   const setup = { authMethodId, resumePreference: spec.resumePreference }
   const resume = launch.resume
   let started: Awaited<ReturnType<AcpStructuredConnection['start']>> | null = null
@@ -73,7 +78,7 @@ export async function initializeAcpStructuredSession(
     try {
       started = await connection.start({
         cwd: launch.cwd,
-        mcpServers: [],
+        mcpServers,
         sessionId: resume.sessionId,
         ...setup
       })
@@ -94,7 +99,7 @@ export async function initializeAcpStructuredSession(
   if (!started || !liveLane) {
     liveLane?.dispose()
     input.lanes.clear()
-    started = await connection.start({ cwd: launch.cwd, mcpServers: [], ...setup })
+    started = await connection.start({ cwd: launch.cwd, mcpServers, ...setup })
     assertStarting()
     liveLane = input.lanes.create(started.sessionId)
   }
@@ -168,5 +173,18 @@ export async function initializeAcpStructuredSession(
     link,
     reportedOptions: options.read().current,
     catalogListing: options.startListing()
+  }
+}
+
+/** An agent's own MCP servers, or none: a file that cannot be read or parsed leaves the chat
+ *  starting exactly as it did before the spec named any. */
+async function readSpecMcpServers(
+  spec: AcpLaunchSpec,
+  launch: AcpStructuredLaunch
+): Promise<McpServer[]> {
+  try {
+    return (await spec.mcpServers?.({ cwd: launch.cwd, env: launch.env })) ?? []
+  } catch {
+    return []
   }
 }
