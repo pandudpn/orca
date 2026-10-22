@@ -9,6 +9,7 @@ import {
   readAcpMcpServers
 } from './acp-mcp-servers'
 
+/** Writes one MCP document, creating the folders its path needs. */
 async function writeDocument(path: string, document: unknown): Promise<void> {
   await mkdir(join(path, '..'), { recursive: true })
   await writeFile(path, JSON.stringify(document), 'utf8')
@@ -58,7 +59,8 @@ describe('reading an agent own MCP document as ACP servers', () => {
           missingCommand: { args: ['x'] },
           missingUrl: { type: 'http' },
           otherTransport: { type: 'websocket', command: 'x' },
-          needsDirectory: { command: 'node', cwd: '/srv/server' }
+          needsDirectory: { command: 'node', cwd: '/srv/server' },
+          remoteWithDirectory: { type: 'http', url: 'https://example.test/other', cwd: '/ignored' }
         }
       }),
       { TOKEN: 'secret' }
@@ -70,7 +72,13 @@ describe('reading an agent own MCP document as ACP servers', () => {
         url: 'https://example.test/mcp',
         headers: [{ name: 'Authorization', value: 'Bearer secret' }]
       },
-      { type: 'sse', name: 'legacy', url: 'https://example.test/sse', headers: [] }
+      { type: 'sse', name: 'legacy', url: 'https://example.test/sse', headers: [] },
+      {
+        type: 'http',
+        name: 'remoteWithDirectory',
+        url: 'https://example.test/other',
+        headers: []
+      }
     ])
     expect(read.skipped).toEqual([
       { name: 'disabled', reason: 'disabled' },
