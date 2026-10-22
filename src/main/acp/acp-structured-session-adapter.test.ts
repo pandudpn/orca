@@ -67,7 +67,9 @@ describe('ACP structured session adapter: acquire', () => {
       { name: 'hub', command: 'uv', args: ['run', 'hub'], env: [{ name: 'A', value: 'b' }] }
     ]
     const rig = await openAcpAdapterRig({
-      deps: { spec: { ...GROK, mcpServers: async () => mcpServers } }
+      deps: {
+        spec: { ...GROK, mcpServers: async () => ({ servers: mcpServers, skipped: [] }) }
+      }
     })
     await rig.acquire()
     expect(rig.sent('session/new')[0]?.params).toMatchObject({ mcpServers })

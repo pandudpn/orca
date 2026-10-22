@@ -22,12 +22,17 @@ import type { AcpStructuredPrompts } from './acp-structured-prompts'
 import type { AcpStructuredSessionAdapterDeps } from './acp-structured-session-adapter-deps'
 import { AcpStructuredTurns, type AcpStructuredTurnsDeps } from './acp-structured-turns'
 import type { AcpLaunchSpec } from './acp-launch-specs'
-import type { McpServer } from './generated/acp-protocol.generated'
+import type { AcpMcpServersRead } from './acp-mcp-servers'
 import {
   assertAcpStartingSession,
   isAcpReadySession,
   type AcpStructuredChild
 } from './acp-structured-child'
+
+const EMPTY_MCP_SERVERS: AcpMcpServersRead = { servers: [], skipped: [] }
+
+/** A skipped MCP server is a person-visible gap, not an internal detail. */
+const ACP_MCP_SERVERS_SKIPPED = 'acp.mcp_servers_skipped'
 
 type AcpHandshakeInput = {
   acquire: StructuredAgentSessionAcquireInput
@@ -66,7 +71,17 @@ export async function initializeAcpStructuredSession(
   })
   // Read on the machine the agent runs on, before the session starts. A missing or broken file
   // must not cost the chat its session, so the resolver never fails the start.
-  const mcpServers = await readSpecMcpServers(spec, launch)
+  const mcp = await readSpecMcpServers(spec, launch)
+  if (mcp.skipped.length > 0) {
+    // A server the person configured but this chat cannot start as written must be visible: the
+    // alternative is a tool that silently does not exist.
+    deps.logger?.warn(ACP_MCP_SERVERS_SKIPPED, {
+      scope: 'acp-mcp-servers',
+      agent: spec.agent,
+      skipped: mcp.skipped
+    })
+  }
+  const mcpServers = mcp.servers
   const setup = { authMethodId, resumePreference: spec.resumePreference }
   const resume = launch.resume
   let started: Awaited<ReturnType<AcpStructuredConnection['start']>> | null = null
@@ -181,10 +196,10 @@ export async function initializeAcpStructuredSession(
 async function readSpecMcpServers(
   spec: AcpLaunchSpec,
   launch: AcpStructuredLaunch
-): Promise<McpServer[]> {
+): Promise<AcpMcpServersRead> {
   try {
-    return (await spec.mcpServers?.({ cwd: launch.cwd, env: launch.env })) ?? []
+    return (await spec.mcpServers?.({ cwd: launch.cwd, env: launch.env })) ?? EMPTY_MCP_SERVERS
   } catch {
-    return []
+    return EMPTY_MCP_SERVERS
   }
 }
