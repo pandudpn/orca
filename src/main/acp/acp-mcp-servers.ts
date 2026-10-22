@@ -111,6 +111,7 @@ export function parseAcpMcpServers(
   return selectServers(document.entries, new Set(document.disabledServers), env)
 }
 
+/** The definitions one document carries, plus the denylist it applies to the whole selection. */
 function parseDocument(content: string): {
   entries: Map<string, z.infer<typeof McpServerEntrySchema>>
   disabledServers: readonly string[]
@@ -138,6 +139,7 @@ function parseDocument(content: string): {
   return { entries, disabledServers: document.data.disabledServers ?? [] }
 }
 
+/** The ACP servers of a merged selection, and why each definition that is not one was dropped. */
 function selectServers(
   definitions: ReadonlyMap<string, z.infer<typeof McpServerEntrySchema>>,
   denied: ReadonlySet<string>,
@@ -153,9 +155,10 @@ function selectServers(
       skipped.push({ name, reason: 'disabled' })
       continue
     }
-    if (entry.cwd !== undefined) {
-      // ACP's stdio server has no working directory, and starting it here would give it the
-      // agent's instead — a different program than the one the person configured.
+    // ACP's stdio server has no working directory, and starting one there would run it from the
+    // agent's instead — a different program than the person configured. A remote server has no
+    // process, so its `cwd` (if a document carries one) changes nothing.
+    if ((entry.type ?? 'stdio') === 'stdio' && entry.cwd !== undefined) {
       skipped.push({ name, reason: 'cwd' })
       continue
     }
@@ -169,6 +172,7 @@ function selectServers(
   return { servers, skipped }
 }
 
+/** One definition in the protocol's shape, or null when it cannot be carried faithfully. */
 function toAcpServer(
   name: string,
   entry: z.infer<typeof McpServerEntrySchema>,
@@ -202,6 +206,7 @@ function toAcpServer(
   }
 }
 
+/** A document's name/value map as the protocol's pair list, with the environment expanded. */
 function toNameValuePairs(
   raw: Readonly<Record<string, string>> | undefined,
   env: Readonly<Record<string, string>>
