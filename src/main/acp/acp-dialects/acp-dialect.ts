@@ -124,6 +124,8 @@ export type AcpDialect = {
   /** The agent's own `/` commands a chat does not offer: hidden from its list, and a message
    *  that is only one of them is refused before it reaches the agent. */
   withheldCommands?: readonly string[]
+  /** Names under this prefix in `available_commands_update` are skills, e.g. OMP's `skill:<name>`. */
+  skillCommandPrefix?: string
 }
 
 /** Which of the dialect's stop routes this agent process proved it answers. */
