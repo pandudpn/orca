@@ -1,9 +1,9 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import capture from './__fixtures__/omp-native-commands.json'
-import * as catalog from './native-chat-slash-commands'
-import type { NativeChatPickerItem } from './native-chat-picker-items'
-import { deriveComposerAutocomplete } from '../renderer/src/components/native-chat/native-chat-composer-state'
-import { mobileComposerSlashItems } from '../../mobile/src/session/mobile-native-chat-composer-menu'
+import capture from '../../../src/shared/__fixtures__/omp-native-commands.json'
+import * as catalog from '../../../src/shared/native-chat-slash-commands'
+import type { NativeChatPickerItem } from '../../../src/shared/native-chat-picker-items'
+import { deriveComposerAutocomplete } from '../../../src/renderer/src/components/native-chat/native-chat-composer-state'
+import { mobileComposerSlashItems } from './mobile-native-chat-composer-menu'
 
 afterEach(() => vi.restoreAllMocks())
 
