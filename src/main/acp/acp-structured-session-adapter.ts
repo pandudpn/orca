@@ -304,13 +304,11 @@ export class AcpStructuredSessionAdapter implements StructuredAgentSessionAdapte
   async closeAll(): Promise<void> {
     const commands = this.atRestCommands?.closeAll?.()
     const copiedChildren = this.copies.closeAll()
-    const ids = new Set([
-      ...this.children.sessions.keys(),
-      ...this.children.starts.failedSessionIds()
-    ])
+    const { children } = this
+    const ids = new Set([...children.sessions.keys(), ...children.starts.failedSessionIds()])
     // The host aborts in-progress starts before this teardown.
     const results = await Promise.allSettled([
-      ...[...ids].map((sessionId) => this.children.stop(sessionId, true)),
+      ...[...ids].map((sessionId) => children.stop(sessionId, true)),
       copiedChildren,
       commands
     ])
