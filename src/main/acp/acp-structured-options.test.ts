@@ -35,7 +35,8 @@ describe('ACP session options', () => {
     const { models, current } = options.read()
     // Current values supply an effort menu, never a catalog default.
     expect(models).toEqual([
-      { id: 'model-a', label: 'Model A', isDefault: false, efforts: [] },
+      // The session's effort menu belongs to model-b; model-a's menu is unknown, not empty.
+      { id: 'model-a', label: 'Model A', isDefault: false, efforts: [], effortsKnown: false },
       {
         id: 'model-b',
         label: 'Model B',
