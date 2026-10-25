@@ -99,9 +99,7 @@ export function deriveComposerAutocomplete(
       ? { mode: 'none' }
       : { mode: 'mention', query: mentionMatch[1], triggerKey }
   }
-  // Why: `/` is the shared composer grammar, so a mid-prompt token opens the same
-  // menu a leading one does — it just cannot dispatch. `$` is the skill sigil's own
-  // skills-only menu.
+  // Mid-prompt slash tokens use the command menu without dispatch; dollar tokens open the agent’s skills-only menu.
   const sigilQuery = profile?.skillPrefix === '$' ? matchSkillSigil(before) : null
   const query =
     sigilQuery ??
@@ -178,10 +176,7 @@ function deriveSlashAutocomplete(
   }
 }
 
-/** True when one edit both removed and inserted text across the dismissed
- *  trigger token — a wholesale replacement (e.g. select-all + paste), which is
- *  a new trigger occurrence even though a trigger character lands back on the
- *  same draft position. Typing or deleting inside the token is not. */
+/** Replacing across an entire dismissed token starts a new occurrence; typing/deleting within it does not. */
 export function editReplacesTriggerToken(
   previous: string,
   next: string,

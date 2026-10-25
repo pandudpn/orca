@@ -11,8 +11,7 @@ const COMMON_ENV_VARS = new Set(
   'PATH HOME USER SHELL PWD TMPDIR TEMP TMP LANG TERM XDG_CONFIG_HOME'.split(' ')
 )
 
-/** The query after a `$` skill sigil at the caret, or null when it reads as shell
- *  syntax (`$HOME`, `$5`, `$(pwd)`, `$?`), by the same rule as Codex's own composer. */
+/** Match caret $ skill queries, excluding shell forms ($HOME, $5, $(pwd), $?) as Codex does. */
 export function matchSkillSigil(before: string): string | null {
   const query = before.match(SKILL_SIGIL_TRIGGER)?.[1] ?? null
   // A bare `$` still opens the full list.
@@ -27,8 +26,7 @@ export function matchSkillSigil(before: string): string | null {
   return !/[a-z]/.test(name) && COMMON_ENV_VARS.has(name.toUpperCase()) ? null : query
 }
 
-/** Replaces the typed trigger token with the item's own token, which for a skill
- *  is the agent-native form whichever trigger opened the menu. */
+/** Replace the trigger with the agent-native item token, regardless of which sigil opened the menu. */
 export function applyPickerSuggestion(
   draft: string,
   caret: number,

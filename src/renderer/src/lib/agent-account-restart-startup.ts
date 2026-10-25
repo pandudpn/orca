@@ -96,13 +96,13 @@ export function resolveAgentAccountRestartResumeStartup(
       launchConfig !== undefined
         ? launchConfig.agentArgs
         : unrecordedLaunchUsesDefaults
-          ? resolveTuiAgentLaunchArgs(agent, state.settings?.agentDefaultArgs)
+          ? resolveTuiAgentLaunchArgs(agent, state.settings)
           : null,
     agentEnv:
       launchConfig !== undefined
         ? launchConfig.agentEnv
         : unrecordedLaunchUsesDefaults
-          ? resolveTuiAgentLaunchEnv(agent, state.settings?.agentDefaultEnv)
+          ? resolveTuiAgentLaunchEnv(agent, state.settings, resumeTarget.platform)
           : null,
     ...(launchConfig?.agentCommand ? { agentCommand: launchConfig.agentCommand } : {}),
     ...(launchConfig?.ompResumeFilePath
@@ -120,8 +120,7 @@ export function resolveAgentAccountRestartResumeStartup(
     command: startupPlan.launchCommand,
     ...(startupPlan.env ? { env: startupPlan.env } : {}),
     launchConfig: startupPlan.launchConfig,
-    // Why it rides along: main only repins the launch home for a spawn that
-    // names the session it is resuming, so dropping this drops the account move.
+    // Main repins launch home only when the spawn names its resumed session; keep that identity with the account move.
     resumeProviderSession: providerSession
   }
 }
