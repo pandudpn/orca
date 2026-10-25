@@ -27,8 +27,10 @@ export type AtRestCommandSource = {
   scan: (
     record: AgentSessionRecord,
     cwd: string,
-    isCurrent: () => boolean
+    isCurrent: () => boolean,
+    signal?: AbortSignal
   ) => Promise<AtRestCommandScan>
+  scanTimeoutMs?: number
   resolveWorkspacePath: (workspaceId: string) => Promise<string>
   label: string
   now?: () => number
@@ -47,6 +49,7 @@ type Entry = {
   started: number
   kept: number
   settled: Set<() => void>
+  scans: Set<AbortController>
 }
 
 /** Cache commands from each resting chat’s launch folder; publish changed scan results. */
@@ -63,6 +66,7 @@ export class AtRestCommandCatalog implements StructuredAgentSessionAtRestCommand
         continue
       }
       this.entries.delete(key)
+      entry.scans.forEach((scan) => scan.abort(new Error('Command context retired')))
       entry.settled.forEach((done) => done())
     }
     queueMicrotask(() => {
@@ -135,7 +139,8 @@ export class AtRestCommandCatalog implements StructuredAgentSessionAtRestCommand
         inFlight: 0,
         started: 0,
         kept: 0,
-        settled: new Set()
+        settled: new Set(),
+        scans: new Set()
       }
       this.entries.set(key, entry)
     }
@@ -151,6 +156,16 @@ export class AtRestCommandCatalog implements StructuredAgentSessionAtRestCommand
   }
 
   private scanInto(entry: Entry, record: AgentSessionRecord): void {
+    const controller = new AbortController()
+    entry.scans.add(controller)
+    const { signal } = controller
+    const timer =
+      this.source.scanTimeoutMs === undefined
+        ? undefined
+        : setTimeout(
+            () => controller.abort(new Error('Command discovery timed out')),
+            this.source.scanTimeoutMs
+          )
     const isCurrent = (): boolean => !this.disposed && this.entries.get(entry.key) === entry
     const scan = ++entry.started
     entry.lastStartedAt = this.now()
@@ -167,15 +182,24 @@ export class AtRestCommandCatalog implements StructuredAgentSessionAtRestCommand
       entry.kept = scan
       return true
     }
-    void (async () => {
+    const work = (async () => {
       await atRestCommandContextReady()
+      signal.throwIfAborted()
       const cwd =
         agentSessionPinnedLaunchDirectory(record) ??
         (await this.source.resolveWorkspacePath(record.location.workspaceId))
+      signal.throwIfAborted()
       return isCurrent()
-        ? this.source.scan(record, cwd, isCurrent)
+        ? this.source.scan(record, cwd, isCurrent, signal)
         : { commands: undefined, fromAgent: false }
     })()
+    let rejectAbort: (reason: unknown) => void = () => {}
+    const aborted = () => rejectAbort(signal.reason)
+    const cancellation = new Promise<never>((_, reject) => {
+      rejectAbort = reject
+      signal.addEventListener('abort', aborted, { once: true })
+    })
+    void Promise.race([work, cancellation])
       .then(
         ({ commands, fromAgent }) => {
           if (!newest(fromAgent)) {
@@ -200,6 +224,9 @@ export class AtRestCommandCatalog implements StructuredAgentSessionAtRestCommand
         }
       )
       .finally(() => {
+        clearTimeout(timer)
+        signal.removeEventListener('abort', aborted)
+        entry.scans.delete(controller)
         entry.inFlight -= 1
         if (entry.inFlight === 0) {
           entry.settled.forEach((done) => done())
