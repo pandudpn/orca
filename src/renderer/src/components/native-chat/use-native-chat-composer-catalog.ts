@@ -43,8 +43,10 @@ export function useNativeChatComposerCatalog(
   )
   const sessionSkills = useMemo(
     () =>
-      reported !== undefined && !keepsScannedSkills ? sessionReportedSkills(reported) : undefined,
-    [keepsScannedSkills, reported]
+      reported !== undefined && !keepsScannedSkills
+        ? sessionReportedSkills(reported, agent)
+        : undefined,
+    [agent, keepsScannedSkills, reported]
   )
   return { agentCommands, sessionSkills }
 }

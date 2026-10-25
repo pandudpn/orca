@@ -63,12 +63,6 @@ const NATIVE_CHAT_AGENT_PROFILES: Partial<Record<AgentType, NativeChatAgentProfi
     skillPrefix: '/',
     skillSourceOwner: 'pi',
     skillNamePrefix: 'skill:'
-  },
-  // OMP reports and expands skills as `/skill:<name>`, like Pi.
-  omp: {
-    skillPrefix: '/',
-    skillSourceOwner: 'omp',
-    skillNamePrefix: 'skill:'
   }
 }
 

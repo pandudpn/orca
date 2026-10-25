@@ -21,11 +21,7 @@ describe('OMP terminal command catalog', () => {
     )
     expect(names).not.toContain('help')
     expect(getVerifiedNativeChatCommands('omp')).toEqual(commands)
-    expect(getNativeChatAgentProfile('omp')).toMatchObject({
-      skillPrefix: '/',
-      skillSourceOwner: 'omp',
-      skillNamePrefix: 'skill:'
-    })
+    expect(getNativeChatAgentProfile('omp')).toBeNull()
     expect(new Set(names).size).toBe(names.length)
     expect(getAgentSlashCommands('pi').map((command) => command.name)).toEqual(['clear', 'help'])
   })
@@ -56,9 +52,14 @@ describe('OMP terminal command catalog', () => {
       sessionSlashCommandSuggestions('omp', [
         { name: 'model', kind: 'command', description: 'Host model selector' },
         { name: 'custom', kind: 'command' },
+        { name: 'skill:', kind: 'command' },
         { name: 'plan', kind: 'skill' }
       ])
-    ).toEqual([{ name: 'model', description: 'Host model selector' }, { name: 'custom' }])
+    ).toEqual([
+      { name: 'model', description: 'Host model selector' },
+      { name: 'custom' },
+      { name: 'skill:' }
+    ])
     expect(sessionSlashCommandSuggestions('omp', [])).toEqual([])
   })
 })

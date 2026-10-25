@@ -46,7 +46,7 @@ function slashItems(
     [],
     query,
     getNativeChatAgentProfile(agent)?.skillPrefix ?? '/',
-    reported ? sessionReportedSkills(reported) : [],
+    reported ? sessionReportedSkills(reported, agent) : [],
     limit
   )
 }

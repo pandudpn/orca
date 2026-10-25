@@ -119,6 +119,5 @@ export const OMP_ACP_DIALECT: AcpDialect = {
       details !== undefined &&
       SIGNED_OUT_DETAIL_PREFIXES.some((prefix) => details.startsWith(prefix))
     )
-  },
-  skillCommandPrefix: 'skill:'
+  }
 }

@@ -103,7 +103,11 @@ export function deriveComposerAutocomplete(
   // menu a leading one does — it just cannot dispatch. `$` is the skill sigil's own
   // skills-only menu.
   const sigilQuery = profile?.skillPrefix === '$' ? matchSkillSigil(before) : null
-  const query = sigilQuery ?? (profile ? before.match(MID_PROMPT_SLASH_TRIGGER)?.[1] : undefined)
+  const query =
+    sigilQuery ??
+    (profile || (sessionSkills?.length ?? 0) > 0
+      ? before.match(MID_PROMPT_SLASH_TRIGGER)?.[1]
+      : undefined)
   if (query === undefined) {
     return { mode: 'none' }
   }
@@ -134,13 +138,11 @@ function deriveSlashAutocomplete(
   if (dismissedTriggerKey === triggerKey) {
     return { mode: 'none' }
   }
-  // Every agent with a known grammar offers skills here; only the token a pick
-  // inserts differs. The caller owns catalog policy (e.g. Grok ships skills-only
-  // until a verified catalog lands), so this derivation must not re-gate per agent.
-  const skillsEnabled = profile !== null
+  // Native reports establish availability independently of optional disk scanning.
+  const skillsEnabled = profile !== null || (sessionSkills?.length ?? 0) > 0
   const namePrefix = profile?.skillNamePrefix
   // Scanned names take the agent's prefix so they match the names its session reports.
-  const scannedSkills = !skillsEnabled
+  const scannedSkills = !profile
     ? []
     : namePrefix
       ? discovery.skills.map((skill) => ({ ...skill, name: `${namePrefix}${skill.name}` }))
@@ -150,7 +152,7 @@ function deriveSlashAutocomplete(
     scannedSkills,
     query,
     profile?.skillPrefix ?? '/',
-    skillsEnabled ? sessionSkills : [],
+    sessionSkills,
     undefined,
     prefix
   )
@@ -165,12 +167,12 @@ function deriveSlashAutocomplete(
     skillsEnabled,
     items,
     skillStatus:
-      skillsEnabled && sessionSkills === undefined
+      profile !== null && sessionSkills === undefined
         ? discovery.status === 'idle'
           ? 'loading'
           : discovery.status
         : 'ready',
-    ...(skillsEnabled && sessionSkills === undefined && discovery.errorKind
+    ...(profile !== null && sessionSkills === undefined && discovery.errorKind
       ? { skillErrorKind: discovery.errorKind }
       : {})
   }
