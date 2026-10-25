@@ -1,4 +1,5 @@
 import { access, readdir } from 'node:fs/promises'
+import * as fs from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import capture from '../../shared/__fixtures__/omp-native-commands.json'
@@ -13,6 +14,11 @@ import {
 } from './acp-command-discovery.test-fixture'
 import { deferred, tick } from './acp-scripted-agent.test-support'
 import { waitFor } from './acp-structured-adapter.test-support'
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof fs>()
+  return { ...actual, rm: vi.fn(actual.rm) }
+})
 
 const rigs: Awaited<ReturnType<typeof commandDiscoveryRig>>[] = []
 async function rig(...args: Parameters<typeof commandDiscoveryRig>) {
@@ -244,25 +250,125 @@ it('answers before slow close, cancels queued deadlines and drains stop without 
   expect(children).toHaveLength(2)
 })
 
-it('retains failed close evidence, storage and permits until observed exit instead of recycling owners', async () => {
-  vi.spyOn(console, 'warn').mockImplementation(() => {})
-  const { catalog, children } = await rig((child) => {
+it.each(['unverifiable', null, 'live'] as const)(
+  'releases exited roots with immutable tree=%s evidence so a third context can answer',
+  async (tree) => {
+    const logger = { warn: vi.fn(), error: vi.fn() }
+    const error = new Error('tree teardown unavailable')
+    const evidence = Object.freeze({ root: 'exited' as const, tree })
+    const { catalog, children, root } = await rig(
+      (child) => {
+        child.proveClose = async () => {
+          child.evidence = evidence
+          child.exit()
+          if (tree === 'unverifiable') {
+            throw error
+          }
+          return true
+        }
+      },
+      { logger }
+    )
+    for (const id of ['one', 'two', 'three']) {
+      expect(await catalog.settled(ompRecord(id), 1_000)).toBeDefined()
+    }
+    await catalog.closeAll()
+    expect(children).toHaveLength(3)
+    expect(
+      children.every((child) => child.lastCloseResult === evidence && child.closes === 1)
+    ).toBe(true)
+    expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
+    expect(logger.warn.mock.calls).toEqual(
+      Array.from({ length: 3 }, () => [
+        'ACP command discovery close evidence',
+        {
+          scope: 'acp-command-discovery',
+          result: evidence,
+          error: tree === 'unverifiable' ? error : undefined
+        }
+      ])
+    )
+  }
+)
+
+it.each([
+  ['live', 'exited'],
+  ['unverifiable', 'exited'],
+  ['live', 'unverifiable']
+] as const)(
+  'retains root=%s with historical tree=%s until genuine exit, then drains cleanup once',
+  async (root, tree) => {
+    const evidence = Object.freeze({ root, tree })
+    const { catalog, children } = await rig((child) => {
+      vi.spyOn(child, 'rootVerdict', 'get').mockImplementation(() =>
+        child.exited ? 'exited' : root
+      )
+      vi.spyOn(child, 'onExit')
+      child.proveClose = async () => {
+        child.evidence = evidence
+        return false
+      }
+    })
+    await catalog.settled(ompRecord('one'), 1_000)
+    await catalog.settled(ompRecord('two'), 1_000)
+    catalog.read(ompRecord('three'))
+    await tick()
+    expect(children).toHaveLength(2)
+    await expect(catalog.closeAll()).rejects.toThrow(/could not prove/)
+    const folders = children.map((child) => child.launch.args.at(-1)!)
+    await Promise.all(folders.map((folder) => access(folder)))
+    children.forEach((child) => child.agent.close())
+    expect(children.every((child) => child.rootVerdict === root)).toBe(true)
+    const cleanup = deferred<void>()
+    const { rm } = await vi.importActual<typeof fs>('node:fs/promises')
+    const remove = vi
+      .mocked(fs.rm)
+      .mockClear()
+      .mockImplementation(async (...args) => {
+        await cleanup.promise
+        return rm(...args)
+      })
+    for (const child of children) {
+      child.exit()
+      vi.mocked(child.onExit).mock.calls[0]![0]({ code: 0, signal: null, processless: false })
+      expect(child.lastCloseResult).toBe(evidence)
+    }
+    let drained = false
+    const stop = catalog.closeAll().then(() => {
+      drained = true
+    })
+    await tick()
+    expect(drained).toBe(false)
+    cleanup.resolve()
+    await stop
+    await catalog.closeAll()
+    expect(remove.mock.calls.map(([folder]) => folder)).toEqual(folders)
+    for (const folder of folders) {
+      await expect(access(folder)).rejects.toThrow()
+    }
+    expect(children).toHaveLength(2)
+    expect(
+      children.every((child) => child.closes === 1 && child.lastCloseResult === evidence)
+    ).toBe(true)
+  }
+)
+
+it('handles actual root exit just before listener registration without changing historical evidence', async () => {
+  const evidence = Object.freeze({ root: 'live' as const, tree: 'unverifiable' as const })
+  const { catalog, children, root } = await rig((child) => {
+    const onExit = child.onExit.bind(child)
+    vi.spyOn(child, 'onExit').mockImplementation((listener) => {
+      child.exit()
+      onExit(listener)
+    })
     child.proveClose = async () => {
-      child.evidence = { root: 'live', tree: 'unverifiable' }
+      child.evidence = evidence
       return false
     }
   })
-  await catalog.settled(ompRecord('one'), 1_000)
-  await catalog.settled(ompRecord('two'), 1_000)
-  catalog.read(ompRecord('three'))
-  await expect(catalog.closeAll()).rejects.toThrow(/could not prove/)
-  expect(children).toHaveLength(2)
-  for (const child of children) {
-    const folder = child.launch.args.at(-1)!
-    await access(folder)
-    expect(child.lastCloseResult).toEqual({ root: 'live', tree: 'unverifiable' })
-    child.evidence = { root: 'exited', tree: 'exited' }
-    child.exit()
-  }
+  expect(await catalog.settled(ompRecord(), 1_000)).toBeDefined()
   await catalog.closeAll()
+  expect(children[0]!.lastCloseResult).toBe(evidence)
+  expect(children[0]!.closes).toBe(1)
+  expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
 })

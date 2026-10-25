@@ -229,28 +229,18 @@ export class AcpAtRestCommandCatalog extends AtRestCommandCatalog {
                 error: evidence.error
               })
             }
-            if (
-              close?.root !== 'exited' ||
-              close.tree === 'live' ||
-              close.tree === 'unverifiable'
-            ) {
+            // Managed root completion ends this disposable owner; tree findings stay diagnostic.
+            if (connection.rootVerdict !== 'exited') {
               const retainedRelease = release
               release = () => {}
               connection.onExit(() => {
-                if (
-                  connection.rootVerdict !== 'exited' ||
-                  connection.lastCloseResult?.tree === 'live' ||
-                  connection.lastCloseResult?.tree === 'unverifiable'
-                ) {
+                if (connection.rootVerdict !== 'exited' || !unclosed.delete(connection)) {
                   return
                 }
-                const cleanup = folder!
-                  .remove()
-                  .then(() => {
-                    unclosed.delete(connection)
-                    retainedRelease()
-                  })
-                  .finally(() => completions.delete(cleanup))
+                const cleanup = folder!.remove().finally(() => {
+                  retainedRelease()
+                  completions.delete(cleanup)
+                })
                 completions.add(cleanup)
               })
               return
