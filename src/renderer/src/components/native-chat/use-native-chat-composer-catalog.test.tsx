@@ -11,6 +11,7 @@ import { useNativeChatComposerCatalog } from './use-native-chat-composer-catalog
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
 import { getVerifiedNativeChatCommands } from '../../../../shared/native-chat-agent-profiles'
 import {
+  dispatchStructuredAgentSessionComposerCommand,
   isStructuredAgentSessionComposerCommand,
   STRUCTURED_AGENT_SESSION_SLASH_COMMANDS,
   structuredSlashCommands
@@ -18,7 +19,6 @@ import {
 import capture from '../../../../shared/__fixtures__/omp-native-commands.json'
 import { useNativeChatPickerState } from './use-native-chat-picker-state'
 import { dispatchNativeChatStructuredComposerText } from './native-chat-structured-composer-dispatch'
-import { dispatchStructuredAgentSessionComposerCommand } from '../../../../shared/structured-agent-session-composer'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import { withNativeChatResumeCommand } from './use-native-chat-resume-command'
 
