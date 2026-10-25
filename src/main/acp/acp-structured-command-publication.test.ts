@@ -83,7 +83,10 @@ it.each([
         await rig.settle()
         await host.flushStreamedEvents(SESSION)
         await waitFor(() => expect(events).toHaveLength(1))
-        const frame = events.find((event) => 'commands' in event)!
+        const frame = events[0]!
+        if (frame.type === 'end') {
+          throw new Error('Expected command publication')
+        }
         expect(frame.commands?.map(({ name, kind }) => [name, kind])).toEqual(
           report.availableCommands.map(({ name }) => [name, 'command'])
         )

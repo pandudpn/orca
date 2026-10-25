@@ -314,7 +314,7 @@ it.each([
       catalog,
       agent = 'omp'
     }: {
-      catalog?: typeof reported
+      catalog?: NativeChatStructuredComposerTransport['sessionCommands']
       agent?: 'omp' | 'grok'
     }) {
       const [draft, setDraft] = useState('/skill:')
