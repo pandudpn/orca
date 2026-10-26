@@ -23,7 +23,7 @@ import { agentJournalSubmissionKey } from '../../../src/shared/agent-session-jou
 import {
   useMobileNativeChatSendError,
   type MobileNativeChatSendErrorDetails
-} from './use-mobile-native-chat-send-error'
+} from './native-chat/use-mobile-native-chat-send-error'
 
 import capture from '../../../src/shared/__fixtures__/omp-native-commands.json'
 import { useMobileNativeChatComposerMenu } from './use-mobile-native-chat-composer-menu'
