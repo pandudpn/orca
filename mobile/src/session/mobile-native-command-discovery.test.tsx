@@ -7,8 +7,11 @@ import {
   commandDiscoveryRig,
   ompRecord
 } from '../../../src/main/acp/acp-command-discovery.test-fixture'
-import { mobileComposerSlashItems } from './mobile-native-chat-composer-menu'
-import { applyAutocomplete, detectAutocompleteTrigger } from './mobile-native-chat-autocomplete'
+import { mobileComposerSlashItems } from './native-chat/composer/mobile-native-chat-composer-menu'
+import {
+  applyAutocomplete,
+  detectAutocompleteTrigger
+} from './native-chat/composer/mobile-native-chat-autocomplete'
 import { deferred } from '../../../src/main/acp/acp-scripted-agent.test-support'
 
 type Hook = ReturnType<typeof useMobileStructuredSessionCommands>

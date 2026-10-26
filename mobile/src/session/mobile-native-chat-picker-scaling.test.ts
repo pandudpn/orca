@@ -3,7 +3,7 @@ import capture from '../../../src/shared/__fixtures__/omp-native-commands.json'
 import * as catalog from '../../../src/shared/native-chat-slash-commands'
 import type { NativeChatPickerItem } from '../../../src/shared/native-chat-picker-items'
 import { deriveComposerAutocomplete } from '../../../src/renderer/src/components/native-chat/native-chat-composer-state'
-import { mobileComposerSlashItems } from './mobile-native-chat-composer-menu'
+import { mobileComposerSlashItems } from './native-chat/composer/mobile-native-chat-composer-menu'
 
 afterEach(() => vi.restoreAllMocks())
 
