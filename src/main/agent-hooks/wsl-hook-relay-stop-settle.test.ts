@@ -8,7 +8,7 @@ const wslMocks = vi.hoisted(() => ({
 vi.mock('../wsl', () => wslMocks)
 
 import { WslRelayRecovery } from './wsl-hook-relay-recovery'
-import { markWslRelayFailed } from './wsl-hook-relay-state-machine'
+const { markWslRelayFailed } = await import('./wsl-hook-relay-state-machine')
 import {
   _resetWslBackgroundDistroGateForTests,
   isWslDistroRunning,

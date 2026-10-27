@@ -350,7 +350,9 @@
     "help": "도움말",
     "paste": "붙여넣기",
     "copy": "복사",
-    "selectAll": "모두 선택"
+    "selectAll": "모두 선택",
+    "quitAndStopAllSessions": "완전히 종료...",
+    "quitAndStopAllSessionsTooltip": "실행 중인 에이전트를 포함한 모든 터미널 세션도 중지합니다. 일반 종료는 세션을 계속 실행해 두어 다음 실행 시 Orca가 다시 연결합니다."
   },
   "tray": {
     "openOrca": "Orca 열기",
@@ -1088,8 +1090,6 @@
         "cookie": {
           "import": {
             "toast": {
-              "restartFallbackUnavailableNone": "{{value0}} 쿠키를 로드할 수 없으며 다시 시작 폴백을 사용할 수 없습니다. 이 프로필의 이전 쿠키가 대체되었습니다. 가져오기를 다시 시도하세요.",
-              "restartFallbackUnavailablePartial": "{{value1}} 쿠키 중 {{value0}}을(를) 가져왔습니다. 나머지는 로드할 수 없으며 다시 시작 폴백을 사용할 수 없습니다. 가져오기를 다시 시도하세요.",
               "googleCookiesSkipped": "Google 쿠키를 가져오지 못했습니다. 이 프로필을 사용하여 {{value0}}의 Orca에서 브라우저를 열고 Google에 로그인하세요.",
               "undecryptableAppBound": "Orca는 앱 바인딩 암호화를 사용하기 때문에 이 브라우저 쿠키의 {{value0}}을(를) 해독할 수 없습니다. \"파일에서...\"를 사용하여 파일에서 쿠키를 가져올 수 있습니다.",
               "undecryptableAppBoundMixed": "Orca는 앱 바인딩 암호화를 사용하기 때문에 이 브라우저 쿠키의 {{value0}}을(를) 해독할 수 없습니다. 다른 이유로 인해 {{value1}} more을(를) 해독할 수 없습니다. \"파일에서...\"를 사용하여 파일에서 쿠키를 가져올 수 있습니다.",
@@ -1098,7 +1098,8 @@
               "undecryptableUnknown": "{{value0}} 쿠키를 해독할 수 없어 건너뛰었습니다. 소스 브라우저를 완전히 닫고 가져오기를 다시 시도하세요.",
               "unrecognizedWarning": "이 버전의 Orca가 인식하지 못한다는 경고와 함께 쿠키 가져오기가 완료되었습니다. Orca를 업데이트하여 세부 정보를 확인한 다음 쿠키를 사용하기 전에 이 프로필을 확인하세요.",
               "undecryptableUnrecognizedReason": "{{value0}} 쿠키는 이 버전의 Orca가 인식하지 못하는 이유로 해독할 수 없으며 건너뛰었습니다. Orca를 업데이트하여 세부정보를 확인한 후 가져오기를 다시 시도하세요.",
-              "partitionSkippedBreakdown": "사이트 파티션을 읽을 수 없는 쿠키: {{value0}}. 기존 세션을 보호하기 위해 가져오지 않은 관련 쿠키: {{value1}}. 해당 사이트의 기존 쿠키는 변경되지 않았습니다. 다시 로그인하기 전에 이 프로필에서 해당 사이트를 확인하세요.",
+              "cookiesSkipped": "쿠키 {{value0}}개를 건너뛰었습니다.",
+              "partitionSkippedCounts": "사이트 파티션을 읽을 수 없는 쿠키: {{value0}}. 함께 건너뛴 관련 쿠키: {{value1}}. 다시 로그인하기 전에 이 프로필에서 해당 사이트를 확인하세요.",
               "partitionSkipped": "{{value0}} 쿠키는 사이트 파티션을 읽을 수 없기 때문에 가져오지 못했습니다. Orca에서 해당 사이트에 다시 로그인합니다.",
               "locationClientHosted": "이 기기에서 읽고 {{value0}} 워크스페이스를 위해 여기에 저장됩니다.",
               "locationRemoteHost": "{{value0}}의 브라우저에서 읽고 거기에 저장됩니다.",
@@ -16815,6 +16816,99 @@
                     }
                   }
                 }
+              },
+              "step": {
+                "copy": {
+                  "workspace": {
+                    "board": {
+                      "plan": {
+                        "title": "보드에서 작업 계획하기",
+                        "body": "프로젝트별이 아니라 상태별로 워크스페이스를 보고 싶을 때 보드를 사용하세요."
+                      },
+                      "lanes": {
+                        "title": "레인을 따라 작업 옮기기",
+                        "body": "상태가 바뀌면 워크스페이스를 레인 사이로 끌어다 놓으세요."
+                      }
+                    },
+                    "creation": {
+                      "project": {
+                        "title": "프로젝트 선택",
+                        "body": "Orca는 각 작업을 기준 브랜치에서 만든 자체 워크트리로 분리합니다."
+                      },
+                      "name": {
+                        "title": "이름을 정하거나 기존 작업에서 시작하기",
+                        "body": "연결된 작업에서 시작하면 짧은 이슈나 PR 이름을 사용합니다. 비워 두면 첫 agent 메시지에서 이름이 자동으로 지정됩니다."
+                      },
+                      "agent": {
+                        "title": "작업을 시작할 agent 선택",
+                        "body": "이 워크트리가 생성될 때 열릴 agent를 선택하세요."
+                      }
+                    }
+                  },
+                  "agent": {
+                    "sessions": {
+                      "split": {
+                        "title": "터미널 창 분할",
+                        "body": "{terminal.splitRight} 키로 두 번째 터미널 창을 열거나, 창을 우클릭해 분할 옵션을 확인하세요.",
+                        "action": "터미널 분할"
+                      },
+                      "parallel": {
+                        "title": "다른 작업을 병렬로 시작하기",
+                        "body": "워크트리마다 자체 브랜치를 가지므로 병렬로 진행하는 작업이 서로 섞이지 않습니다."
+                      }
+                    }
+                  },
+                  "browser": {
+                    "grab": {
+                      "title": "agent를 위한 페이지 컨텍스트 가져오기",
+                      "body": "grab 도구로 페이지 요소의 컨텍스트를 복사해 agent에 전달하세요."
+                    },
+                    "annotate": {
+                      "title": "디자인 피드백을 화면에 바로 남기기",
+                      "body": "요소에 주석을 달고 그 메모를 agent에 보내세요."
+                    },
+                    "logins": {
+                      "title": "로그인 상태 유지",
+                      "body": "기존 로그인 정보를 Orca로 가져와 바로 로그인 상태를 유지하세요."
+                    }
+                  },
+                  "tasks": {
+                    "source": {
+                      "title": "작업 소스 선택",
+                      "body": "페이지를 이동하지 않고 연결된 제공자와 프로젝트 필터를 전환하세요."
+                    },
+                    "filter": {
+                      "title": "필요한 작업만 필터링하기",
+                      "body": "프리셋과 검색으로 이슈, 리뷰, merge requests, 작업의 범위를 좁히세요."
+                    },
+                    "start": {
+                      "title": "작업 항목에서 시작하기",
+                      "body": "작업, 이슈, 리뷰, merge request에서 시작 또는 열기를 눌러 해당 컨텍스트를 워크스페이스로 가져오세요."
+                    }
+                  },
+                  "floating": {
+                    "workspace": {
+                      "repos": {
+                        "title": "agent 하나로 모든 repo 다루기",
+                        "body": "이곳의 agent는 선택한 어떤 폴더에서도 실행됩니다. 서비스들의 상위 디렉터리를 지정하면 모든 repo에서 한 번에 작업할 수 있습니다."
+                      },
+                      "scratchpad": {
+                        "title": "메모장처럼 사용하기",
+                        "body": "집중하고 있는 워크트리를 어지럽히지 않고 agent, 임시 터미널, 노트, 브라우저 탭을 열 수 있습니다."
+                      }
+                    }
+                  },
+                  "client": {
+                    "hosted": {
+                      "browser": {
+                        "intro": {
+                          "action": "확인",
+                          "secondaryAction": "브라우저 설정"
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -20217,7 +20311,8 @@
       "streamedDetail": "페이지는 원격 호스트에서 실행되고 이 기기로 스트리밍됩니다."
     },
     "remote": {
-      "findUnavailable": "이 페이지가 원격 호스트에서 스트리밍되는 동안에는 페이지에서 찾기를 사용할 수 없습니다."
+      "findUnavailable": "이 페이지가 원격 호스트에서 스트리밍되는 동안에는 페이지에서 찾기를 사용할 수 없습니다.",
+      "selectionTooLargeToCopy": "선택 영역이 너무 커서 원격 호스트에서 스트리밍되는 페이지에서 복사할 수 없습니다."
     },
     "userAgentMigration": {
       "degradedDescription": "이전 브라우저 ID 선택을 검사할 수 없습니다. 브라우저 설정에서 정리됨 또는 기본을 선택하십시오. 변경 사항은 다시 시작한 후에 적용됩니다.",
@@ -20291,6 +20386,31 @@
       "stopped": "중지됨",
       "failed": "실패함",
       "finished": "완료됨"
+    },
+    "bell": {
+      "attentionRequested": "확인이 필요합니다",
+      "title": "{{worktree}}에서 벨이 울림"
+    },
+    "test": {
+      "title": "Orca 알림이 켜져 있습니다",
+      "body": "Orca에서 보낸 테스트 알림입니다."
+    },
+    "workspaceFallback": "워크스페이스",
+    "agentTool": {
+      "usingWithInput": "{{tool}} 사용 중: {{input}}",
+      "using": "{{tool}} 사용 중",
+      "input": "도구 입력: {{input}}"
+    },
+    "taskComplete": {
+      "title": "{{worktree}}에서 작업 완료",
+      "body": "코딩 에이전트가 작업을 마쳤습니다."
+    },
+    "permissionProbe": {
+      "body": "에이전트가 작업을 마치거나 터미널에서 확인이 필요하면 Orca가 알려 드립니다."
+    },
+    "startupRegistration": {
+      "title": "Orca 알림을 받을 준비가 되었습니다",
+      "body": "알림을 허용하면 에이전트가 작업을 마치거나 터미널에서 확인이 필요할 때 Orca가 알려 드립니다."
     }
   },
   "sidebar": {
@@ -20554,6 +20674,12 @@
       "findInFolder": "{{path}}에서 찾기",
       "folderLoadError": "이 폴더를 불러오지 못했습니다:",
       "emptyFolder": "이 폴더에 파일이 없습니다"
+    },
+    "trashFailed": {
+      "titleRecycleBin": "'{{name}}'을(를) 휴지통으로 이동하지 못했습니다. 영구적으로 삭제하시겠습니까?",
+      "titleTrash": "'{{name}}'을(를) 휴지통으로 이동하지 못했습니다. 영구적으로 삭제하시겠습니까?",
+      "description": "이 작업은 되돌릴 수 없습니다.",
+      "confirm": "영구 삭제"
     }
   },
   "sparsePreset": {
@@ -21293,5 +21419,17 @@
   },
   "browserTab": {
     "agentDriving": "에이전트가 이 페이지를 사용 중입니다"
+  },
+  "quitAndStopAllSessions": {
+    "title": "완전히 종료",
+    "message": "모든 터미널 세션을 중지하고 Orca를 종료하시겠습니까?",
+    "detail": "Orca가 모든 터미널 탭을 닫고 터미널에서 실행 중인 에이전트를 포함한 세션을 중지한 뒤 종료합니다. 일반 종료는 세션을 계속 실행해 두어 다음 실행 시 Orca가 다시 연결합니다. 원격 호스트의 터미널 세션은 원격에서 계속 실행될 수 있습니다. 저장되지 않은 터미널 작업은 손실되며, 닫힌 탭은 다음 실행 시 복원되지 않습니다. 이 작업은 되돌릴 수 없습니다.",
+    "confirm": "세션 중지 후 종료",
+    "cancel": "취소",
+    "failed": "터미널 세션을 모두 중지하지 못해 Orca가 종료되지 않았습니다.",
+    "stopping": "터미널 세션을 중지한 뒤 종료하는 중…",
+    "ok": "확인",
+    "unavailableMessage": "Orca가 지금은 모든 터미널 세션을 중지할 수 없습니다.",
+    "unavailableDetail": "아무것도 중지하지 않았습니다. 터미널이 열린 뒤 다시 시도하세요. 더 새로운 버전의 Orca에서 열렸다고 표시된 터미널이 있으면 먼저 다시 여세요. 터미널이 이미 열려 있다면 Orca를 종료했다가 다시 연 다음 다시 시도하세요."
   }
 }

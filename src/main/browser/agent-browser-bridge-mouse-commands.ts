@@ -39,6 +39,7 @@ export abstract class AgentBrowserBridgeMouseCommands extends AgentBrowserBridge
         const lease = acquireElectronDebugger(wc)
         let releaseFocusGuard = (): void => {}
         try {
+          await this.waitForPagePaint(wc, target.webContentsId)
           await this.browserManager.showAgentPointer(wc, { type: 'mouseMoved', x, y })
           releaseFocusGuard = await this.focusPageForPress(wc, target.webContentsId)
           // Hit testing can activate an element; recheck access after awaiting focus.

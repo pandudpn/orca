@@ -12,11 +12,11 @@ import {
 import { closeProviderTimelineRigs } from '../native-chat/agent-session-timeline/provider-timeline-assembler-test-support'
 import { commandDiscoveryRig, OMP } from './acp-command-discovery.test-fixture'
 import { createTestParams } from '../native-chat/agent-session-wire/structured-agent-session-create-test-fixture'
-import { buildNativeChatPickerItems } from '../../shared/native-chat-picker-items'
+import { buildNativeChatPickerItems } from '../../shared/native-chat/input/native-chat-picker-items'
 import {
   sessionReportedSkills,
   sessionSlashCommandSuggestions
-} from '../../shared/native-chat-slash-commands'
+} from '../../shared/native-chat/input/native-chat-slash-commands'
 import { setStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { RpcDispatcher } from '../runtime/rpc/dispatcher'

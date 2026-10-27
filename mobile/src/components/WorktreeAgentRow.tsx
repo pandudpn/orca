@@ -2,7 +2,7 @@ import { agentNoUpdateLabel } from '../../../src/shared/agent-row-decay-state'
 import { memo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
-import { withoutNativeChatVisualDirectiveLines } from '../../../src/shared/native-chat-visual-directive'
+import { withoutNativeChatVisualDirectiveLines } from '../../../src/shared/native-chat/native-chat-visual-directive'
 import { colors, spacing } from '../theme/mobile-theme'
 import {
   agentDisplayLabel,

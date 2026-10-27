@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
+import type { SessionOptionDescriptor } from '../../../src/shared/native-chat/input/native-chat-session-options'
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
 import type { MobileNativeChatPrompts } from './native-chat/input/use-mobile-native-chat-prompts'
@@ -110,7 +110,7 @@ vi.mock('./use-mobile-structured-agent-session', () => ({
 vi.mock('./native-chat/composer/use-mobile-native-chat-drafts', () => ({
   useMobileNativeChatDrafts: () => {
     return {
-      composerText: '',
+      draftKey: null,
       setComposerText: vi.fn(),
       pending: [],
       imagePreviewsByMessageId: {},

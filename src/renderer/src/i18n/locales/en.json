@@ -48,6 +48,10 @@
       "description": "The active workspace is hidden in the sidebar. Revealing it will adjust only the filters hiding it.",
       "confirm": "Adjust filters and reveal",
       "cancel": "Keep filters"
+    },
+    "startupWorktreeRefresh": {
+      "loading": "Discovering workspaces…",
+      "description": "More workspaces may appear while local and remote projects load."
     }
   },
   "app": {
@@ -166,7 +170,8 @@
       "streamedDetail": "The page runs on the remote host and streams to this device."
     },
     "remote": {
-      "findUnavailable": "Find in page is not available while this page streams from the remote host."
+      "findUnavailable": "Find in page is not available while this page streams from the remote host.",
+      "selectionTooLargeToCopy": "The selection is too large to copy from a page streamed from the remote host."
     },
     "userAgentMigration": {
       "degradedDescription": "An old browser identity choice could not be inspected. Choose Cleaned or Native in Browser settings; changes take effect after a restart.",
@@ -614,7 +619,9 @@
     "help": "Help",
     "paste": "Paste",
     "copy": "Copy",
-    "selectAll": "Select All"
+    "selectAll": "Select All",
+    "quitAndStopAllSessions": "Quit Completely...",
+    "quitAndStopAllSessionsTooltip": "Also stops every terminal session, including running agents. Plain Quit keeps them running so Orca reattaches on next launch."
   },
   "tray": {
     "openOrca": "Open Orca",
@@ -929,7 +936,11 @@
           "wslFilesystemBoundaryTitle": "This project is stored on a Windows drive",
           "wslFilesystemBoundaryDescription": "Git for this project runs in {{distro}}, which reaches Windows drives over the WSL filesystem bridge. Expect git to be roughly 20x slower than it would be on a copy stored inside {{distro}}.",
           "moveToGroupOtherHost": "Could not move project to group",
-          "moveToGroupOtherHostDesc": "The computer this project runs on does not have this group. A project can only join groups saved on its own computer."
+          "moveToGroupOtherHostDesc": "The computer this project runs on does not have this group. A project can only join groups saved on its own computer.",
+          "pendingRemovalRefused": "The server kept a project you removed while it was offline",
+          "removeProjectHostUnreachable": "Its server can’t be reached. Remove it from this desktop now, and Orca removes it from the server when it reconnects.",
+          "removeProjectLocallyNow": "Remove from this desktop now",
+          "removeProjectHostDisconnected": "Its server is disconnected. Remove it from this desktop now, and Orca removes it from the server when you reconnect."
         },
         "settings": {
           "e12dab333b": "Failed to switch servers",
@@ -1364,8 +1375,6 @@
         "cookie": {
           "import": {
             "toast": {
-              "restartFallbackUnavailableNone": "None of the {{value0}} cookies could be loaded, and the restart fallback was unavailable. The previous cookies for this profile were replaced. Try the import again.",
-              "restartFallbackUnavailablePartial": "Imported {{value0}} of {{value1}} cookies. The rest could not be loaded, and the restart fallback was unavailable. Try the import again.",
               "googleCookiesSkipped": "Google cookies were not imported. Open a browser in Orca on {{value0}} with this profile, then sign into Google.",
               "undecryptableAppBound": "Orca cannot decrypt {{value0}} of this browser's cookies because they use app-bound encryption. You can import cookies from a file using “From File…”.",
               "undecryptableAppBoundMixed": "Orca cannot decrypt {{value0}} of this browser's cookies because they use app-bound encryption; {{value1}} more could not be decrypted for another reason. You can import cookies from a file using “From File…”.",
@@ -1378,7 +1387,8 @@
               "undecryptableUnknown": "{{value0}} cookies could not be decrypted and were skipped. Close the source browser completely and try the import again.",
               "unrecognizedWarning": "The cookie import finished with a warning this version of Orca does not recognize. Update Orca to see the details, then check this profile before relying on its cookies.",
               "undecryptableUnrecognizedReason": "{{value0}} cookies could not be decrypted and were skipped for a reason this version of Orca does not recognize. Update Orca to see the details, then try the import again.",
-              "partitionSkippedBreakdown": "Cookies with unreadable site partitions: {{value0}}. Related cookies left unimported to protect existing sessions: {{value1}}. Existing cookies for these sites were left unchanged. Check these sites in this profile before signing in again.",
+              "cookiesSkipped": "{{value0}} cookies skipped.",
+              "partitionSkippedCounts": "Cookies with unreadable site partitions: {{value0}}. Related cookies also skipped: {{value1}}. Check these sites in this profile before signing in again.",
               "partitionSkipped": "{{value0}} cookies were not imported because their site-partition could not be read. Sign in to those sites again in Orca.",
               "locationClientHosted": "Read from this device and stored here for the {{value0}} workspace.",
               "locationRemoteHost": "Read from browsers on {{value0}} and stored there.",
@@ -17255,6 +17265,99 @@
                     }
                   }
                 }
+              },
+              "step": {
+                "copy": {
+                  "workspace": {
+                    "board": {
+                      "plan": {
+                        "title": "Plan work on the board",
+                        "body": "Use the board when you want to see workspaces by status instead of by project."
+                      },
+                      "lanes": {
+                        "title": "Move work through lanes",
+                        "body": "Drag workspaces between lanes as their status changes."
+                      }
+                    },
+                    "creation": {
+                      "project": {
+                        "title": "Pick a project",
+                        "body": "Orca isolates each task in its own worktree, branched off your base."
+                      },
+                      "name": {
+                        "title": "Name it, or start from existing work",
+                        "body": "Start from a linked task for a short issue or PR name. Or leave it blank to auto-name it from your first agent message."
+                      },
+                      "agent": {
+                        "title": "Choose what agent starts the work",
+                        "body": "Pick the agent that should be opened when this worktree is created."
+                      }
+                    }
+                  },
+                  "agent": {
+                    "sessions": {
+                      "split": {
+                        "title": "Split a terminal pane",
+                        "body": "Open a second terminal pane with {terminal.splitRight}, or right-click the pane for split options.",
+                        "action": "Split terminal"
+                      },
+                      "parallel": {
+                        "title": "Start another task in parallel",
+                        "body": "Each worktree gets its own branch, so parallel work stays separate."
+                      }
+                    }
+                  },
+                  "browser": {
+                    "grab": {
+                      "title": "Grab page context for agents",
+                      "body": "Use the grab tool to copy a page element's context for agents."
+                    },
+                    "annotate": {
+                      "title": "Mark design feedback in place",
+                      "body": "Annotate elements and send those notes to an agent."
+                    },
+                    "logins": {
+                      "title": "Stay logged in",
+                      "body": "Bring your existing logins into Orca to stay signed in immediately."
+                    }
+                  },
+                  "tasks": {
+                    "source": {
+                      "title": "Choose the work source",
+                      "body": "Switch between connected providers and project filters without changing pages."
+                    },
+                    "filter": {
+                      "title": "Filter to the work you need",
+                      "body": "Use presets and search to narrow issues, reviews, merge requests, or tasks."
+                    },
+                    "start": {
+                      "title": "Start from work items",
+                      "body": "Use Start or Open on a task, issue, review, or merge request to bring its context into a workspace."
+                    }
+                  },
+                  "floating": {
+                    "workspace": {
+                      "repos": {
+                        "title": "Run an agent across every repo",
+                        "body": "Agents here run in any folder you choose. Point one at the directory above your services to work across all your repos at once."
+                      },
+                      "scratchpad": {
+                        "title": "Or use it as a scratchpad",
+                        "body": "Open agents, scratch terminals, notes, and browser tabs without cluttering the worktree you’re focused on."
+                      }
+                    }
+                  },
+                  "client": {
+                    "hosted": {
+                      "browser": {
+                        "intro": {
+                          "action": "Got it",
+                          "secondaryAction": "Browser settings"
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -17633,7 +17736,8 @@
           "51a470b966": "ssh",
           "b09b2384fd": "Paused",
           "eaa02014f8": "Enabled",
-          "29baf8f4c2": "Source"
+          "29baf8f4c2": "Source",
+          "lastRunFailed": "Last run failed."
         },
         "AutomationEditorDialog": {
           "fb1896a5e7": "Cancel",
@@ -17822,7 +17926,8 @@
           "tableLastRun": "Last run",
           "noListMatches": "No automations match.",
           "destinationProjectUnavailable": "Choose a project owned by the selected automation destination.",
-          "ownerChanged": "This automation changed hosts. Refresh and try again."
+          "ownerChanged": "This automation changed hosts. Refresh and try again.",
+          "runError": "Error:"
         },
         "AutomationsPageSkeleton": {
           "55527b7bcf": "Loading automations"
@@ -19843,6 +19948,9 @@
         "sendHint": "Send this message now",
         "delete": "Delete",
         "moreActions": "More actions",
+        "moveChanged": "The queue changed before this move. Try dragging the message again.",
+        "reorderHint": "Drag to reorder, or use the Up and Down arrow keys.",
+        "reorderMessage": "Reorder message",
         "editMessage": "Edit message",
         "showFullMessage": "Show full message",
         "showLess": "Show less",
@@ -20671,6 +20779,31 @@
       "stopped": "stopped",
       "failed": "failed",
       "finished": "finished"
+    },
+    "bell": {
+      "attentionRequested": "Attention requested",
+      "title": "Bell in {{worktree}}"
+    },
+    "test": {
+      "title": "Orca notifications are on",
+      "body": "This is a test notification from Orca."
+    },
+    "workspaceFallback": "workspace",
+    "agentTool": {
+      "usingWithInput": "Using {{tool}}: {{input}}",
+      "using": "Using {{tool}}",
+      "input": "Tool input: {{input}}"
+    },
+    "taskComplete": {
+      "title": "Task complete in {{worktree}}",
+      "body": "A coding agent finished working."
+    },
+    "permissionProbe": {
+      "body": "Orca will alert you when agents finish or terminals need attention."
+    },
+    "startupRegistration": {
+      "title": "Orca is ready to notify you",
+      "body": "Allow notifications so Orca can alert you when agents finish or terminals need attention."
     }
   },
   "sessionSearch": {
@@ -20893,6 +21026,12 @@
       "findInFolder": "Find in {{path}}",
       "folderLoadError": "Could not load this folder:",
       "emptyFolder": "No files in this folder"
+    },
+    "trashFailed": {
+      "titleRecycleBin": "Couldn't move '{{name}}' to the Recycle Bin. Delete it permanently?",
+      "titleTrash": "Couldn't move '{{name}}' to the Trash. Delete it permanently?",
+      "description": "This cannot be undone.",
+      "confirm": "Delete Permanently"
     }
   },
   "sparsePreset": {
@@ -21498,5 +21637,17 @@
     "math": {
       "scrollDisplayEquation": "Scroll display equation"
     }
+  },
+  "quitAndStopAllSessions": {
+    "confirm": "Stop Sessions and Quit",
+    "cancel": "Cancel",
+    "title": "Quit Completely",
+    "message": "Stop all terminal sessions and quit Orca?",
+    "detail": "Orca closes every terminal tab and stops its session, including agents running in terminals, then quits. Plain Quit keeps them running so Orca reattaches on next launch. Terminal sessions on remote hosts may keep running there. Unsaved terminal work is lost, and the closed tabs don't come back on next launch. This can't be undone.",
+    "failed": "Couldn't stop every terminal session, so Orca stayed open.",
+    "stopping": "Stopping terminal sessions, then quitting…",
+    "ok": "OK",
+    "unavailableMessage": "Orca can't stop every terminal session right now.",
+    "unavailableDetail": "Nothing was stopped. Try again once your terminals have opened. If a terminal says it was opened in a newer version of Orca, reopen it first. If your terminals are already open, quit and reopen Orca, then try again."
   }
 }

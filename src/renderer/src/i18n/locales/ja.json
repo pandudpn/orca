@@ -350,7 +350,9 @@
     "help": "ヘルプ",
     "paste": "貼り付け",
     "copy": "コピー",
-    "selectAll": "すべて選択"
+    "selectAll": "すべて選択",
+    "quitAndStopAllSessions": "完全に終了…",
+    "quitAndStopAllSessionsTooltip": "実行中の Agent を含む、すべてのターミナルセッションも停止します。通常の終了ではセッションは実行されたままになり、次回起動時に Orca が再接続します。"
   },
   "tray": {
     "openOrca": "Orca を開く",
@@ -1088,8 +1090,6 @@
         "cookie": {
           "import": {
             "toast": {
-              "restartFallbackUnavailableNone": "{{value0}} 件の Cookie をいずれも読み込めず、再起動によるフォールバックも利用できませんでした。このプロファイルの以前の Cookie は置き換えられています。もう一度インポートしてください。",
-              "restartFallbackUnavailablePartial": "{{value1}} 件中 {{value0}} 件の Cookie をインポートしました。残りは読み込めず、再起動によるフォールバックも利用できませんでした。もう一度インポートしてください。",
               "googleCookiesSkipped": "Google Cookie はインポートされませんでした。このプロファイルを使用して {{value0}} に Orca でブラウザを開き、Google にサインインします。",
               "undecryptableAppBound": "Orca は、このブラウザの Cookie の {{value0}} を復号化できません。アプリバインド暗号化が使用されているためです。 「ファイルから…」を使用して、ファイルから Cookie をインポートできます。",
               "undecryptableAppBoundMixed": "Orca は、このブラウザの Cookie の {{value0}} を解読できません。このブラウザの Cookie はアプリバインドの暗号化を使用しているためです。 {{value1}} 件以上は別の理由で復号化できませんでした。 「ファイルから…」を使用して、ファイルから Cookie をインポートできます。",
@@ -1098,7 +1098,8 @@
               "undecryptableUnknown": "{{value0}} Cookie を復号化できなかったため、スキップされました。ソースブラウザを完全に閉じて、インポートを再試行してください。",
               "unrecognizedWarning": "Cookie のインポートは、このバージョンの Orca が認識しない警告とともに終了しました。 Orca を更新して詳細を確認し、Cookie に依存する前にこのプロファイルを確認してください。",
               "undecryptableUnrecognizedReason": "{{value0}} Cookie は復号化できず、このバージョンの Orca が認識しない理由でスキップされました。 Orca を更新して詳細を確認し、インポートを再試行してください。",
-              "partitionSkippedBreakdown": "サイト パーティションを読み取れない Cookie: {{value0}}。既存のセッションを保護するためにインポートしなかった関連 Cookie: {{value1}}。これらのサイトの既存の Cookie は変更されていません。再度ログインする前に、このプロファイルでこれらのサイトを確認してください。",
+              "cookiesSkipped": "{{value0}} 件の Cookie をスキップしました。",
+              "partitionSkippedCounts": "サイト パーティションを読み取れない Cookie: {{value0}}。同時にスキップされた関連 Cookie: {{value1}}。再度ログインする前に、このプロファイルでこれらのサイトを確認してください。",
               "partitionSkipped": "{{value0}} Cookie は、サイトパーティションを読み取れなかったため、インポートされませんでした。 Orca でこれらのサイトに再度サインインします。",
               "locationClientHosted": "このデバイスから読み取り、{{value0}} ワークスペース用にここに保存されます。",
               "locationRemoteHost": "{{value0}} 上のブラウザから読み取り、そこに保存されます。",
@@ -3579,7 +3580,7 @@
             "openLink": "リンクを開く",
             "openFile": "ファイルを開く",
             "switchWorkspace": "ワークスペースを切り替える",
-            "openInFinder": "ファインダーで開く",
+            "openInFinder": "Finderで開く",
             "openFolder": "フォルダーを開く",
             "openWithDefaultApp": "デフォルトのアプリで開く",
             "switchTerminal": "スイッチ端子",
@@ -13304,7 +13305,7 @@
             "e887fa4b2e": "ターミナルで開く",
             "1d8e182c32": "ファイルを表示",
             "clipboardStagingUnavailable": "Orca の一時ストレージが利用できないため、ファイルをコピーできませんでした",
-            "revealInFinder": "ファインダーで表示",
+            "revealInFinder": "Finderで表示",
             "openContainingFolder": "含まれているフォルダーを開く",
             "revealInFileExplorer": "ファイルエクスプローラーで表示"
           },
@@ -16815,6 +16816,99 @@
                     }
                   }
                 }
+              },
+              "step": {
+                "copy": {
+                  "workspace": {
+                    "board": {
+                      "plan": {
+                        "title": "ボードで作業を計画する",
+                        "body": "プロジェクト別ではなく状態別にワークスペースを見たいときはボードを使います。"
+                      },
+                      "lanes": {
+                        "title": "レーン間で作業を動かす",
+                        "body": "状態が変わったら、ワークスペースをレーン間にドラッグします。"
+                      }
+                    },
+                    "creation": {
+                      "project": {
+                        "title": "プロジェクトを選ぶ",
+                        "body": "Orca は各タスクをベースブランチから分岐した専用のワークツリーに分離します。"
+                      },
+                      "name": {
+                        "title": "名前を付けるか、既存の作業から始める",
+                        "body": "リンクされたタスクから始めると、短い issue 名や PR 名が使われます。空欄のままにすると、最初の Agent メッセージから自動で名前が付きます。"
+                      },
+                      "agent": {
+                        "title": "作業を開始する Agent を選ぶ",
+                        "body": "このワークツリーが作成されたときに開く Agent を選びます。"
+                      }
+                    }
+                  },
+                  "agent": {
+                    "sessions": {
+                      "split": {
+                        "title": "ターミナルペインを分割する",
+                        "body": "{terminal.splitRight} で 2 つ目のターミナルペインを開くか、ペインを右クリックして分割オプションを表示します。",
+                        "action": "ターミナルを分割"
+                      },
+                      "parallel": {
+                        "title": "別のタスクを並行して始める",
+                        "body": "ワークツリーごとに専用のブランチがあるため、並行して進める作業が混ざりません。"
+                      }
+                    }
+                  },
+                  "browser": {
+                    "grab": {
+                      "title": "Agent 向けにページのコンテキストを取得する",
+                      "body": "grab ツールでページ要素のコンテキストをコピーして Agent に渡します。"
+                    },
+                    "annotate": {
+                      "title": "デザインのフィードバックをその場で残す",
+                      "body": "要素に注釈を付けて、そのメモを Agent に送ります。"
+                    },
+                    "logins": {
+                      "title": "ログイン状態を保つ",
+                      "body": "既存のログイン情報を Orca に取り込んで、すぐにログイン状態を保ちます。"
+                    }
+                  },
+                  "tasks": {
+                    "source": {
+                      "title": "作業のソースを選ぶ",
+                      "body": "ページを移動せずに、接続済みのプロバイダーとプロジェクトフィルターを切り替えます。"
+                    },
+                    "filter": {
+                      "title": "必要な作業だけに絞り込む",
+                      "body": "プリセットと検索で issues、レビュー、merge requests、タスクを絞り込みます。"
+                    },
+                    "start": {
+                      "title": "作業アイテムから始める",
+                      "body": "タスク、issue、レビュー、merge request で開始または開くを押すと、そのコンテキストをワークスペースに取り込めます。"
+                    }
+                  },
+                  "floating": {
+                    "workspace": {
+                      "repos": {
+                        "title": "すべてのリポジトリで Agent を実行する",
+                        "body": "ここの Agent は選んだ任意のフォルダーで実行されます。サービスの 1 つ上のディレクトリを指定すれば、すべてのリポジトリをまとめて扱えます。"
+                      },
+                      "scratchpad": {
+                        "title": "スクラッチパッドとしても使える",
+                        "body": "集中しているワークツリーを散らかさずに、Agent、一時的なターミナル、ノート、ブラウザタブを開けます。"
+                      }
+                    }
+                  },
+                  "client": {
+                    "hosted": {
+                      "browser": {
+                        "intro": {
+                          "action": "了解",
+                          "secondaryAction": "ブラウザ設定"
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -20218,7 +20312,8 @@
       "streamedDetail": "ページはリモートホスト上で実行され、このデバイスにストリーミングされます。"
     },
     "remote": {
-      "findUnavailable": "このページがリモートホストからストリーミングされている間は、ページ内検索は利用できません。"
+      "findUnavailable": "このページがリモートホストからストリーミングされている間は、ページ内検索は利用できません。",
+      "selectionTooLargeToCopy": "選択範囲が大きすぎるため、リモートホストからストリーミングされているページからコピーできません。"
     },
     "userAgentMigration": {
       "degradedDescription": "古いブラウザ ID の選択を検査できませんでした。ブラウザ設定でクリーンまたはネイティブを選択します。変更は再起動後に有効になります。",
@@ -20292,6 +20387,31 @@
       "stopped": "停止",
       "failed": "失敗",
       "finished": "完了"
+    },
+    "bell": {
+      "attentionRequested": "対応が必要です",
+      "title": "{{worktree}} でベルが鳴りました"
+    },
+    "test": {
+      "title": "Orca の通知はオンです",
+      "body": "これは Orca からのテスト通知です。"
+    },
+    "workspaceFallback": "ワークスペース",
+    "agentTool": {
+      "usingWithInput": "{{tool}} を使用中: {{input}}",
+      "using": "{{tool}} を使用中",
+      "input": "ツール入力: {{input}}"
+    },
+    "taskComplete": {
+      "title": "{{worktree}} のタスクが完了しました",
+      "body": "コーディング Agent が作業を終えました。"
+    },
+    "permissionProbe": {
+      "body": "Agent が完了したときや、ターミナルで対応が必要なときに Orca がお知らせします。"
+    },
+    "startupRegistration": {
+      "title": "Orca の通知の準備ができました",
+      "body": "通知を許可すると、Agent が完了したときや、ターミナルで対応が必要なときに Orca がお知らせします。"
     }
   },
   "sidebar": {
@@ -20555,6 +20675,12 @@
       "findInFolder": "{{path}} 内を検索",
       "folderLoadError": "このフォルダーを読み込めませんでした：",
       "emptyFolder": "このフォルダーにはファイルがありません"
+    },
+    "trashFailed": {
+      "titleRecycleBin": "「{{name}}」をごみ箱に移動できませんでした。完全に削除しますか？",
+      "titleTrash": "「{{name}}」をごみ箱に移動できませんでした。完全に削除しますか？",
+      "description": "この操作は取り消せません。",
+      "confirm": "完全に削除"
     }
   },
   "sparsePreset": {
@@ -21294,5 +21420,17 @@
   },
   "browserTab": {
     "agentDriving": "Agent がこのページを使用中です"
+  },
+  "quitAndStopAllSessions": {
+    "title": "完全に終了",
+    "message": "すべてのターミナルセッションを停止して Orca を終了しますか?",
+    "detail": "Orca はすべてのターミナルタブを閉じ、ターミナルで実行中の Agent を含むセッションを停止してから終了します。通常の終了ではセッションは実行されたままになり、次回起動時に Orca が再接続します。リモートホスト上のターミナルセッションは、リモート側で動き続けることがあります。保存されていないターミナル作業は失われ、閉じたタブは次回の起動時に復元されません。この操作は取り消せません。",
+    "confirm": "セッションを停止して終了",
+    "cancel": "キャンセル",
+    "failed": "ターミナルセッションをすべて停止できなかったため、Orca は終了しませんでした。",
+    "stopping": "ターミナルセッションを停止してから終了しています…",
+    "ok": "OK",
+    "unavailableMessage": "Orca は現在、すべてのターミナルセッションを停止できません。",
+    "unavailableDetail": "何も停止していません。ターミナルが開いてから、もう一度お試しください。新規バージョンの Orca で開かれたと表示されているターミナルがある場合は、先に再度開いてください。ターミナルがすでに開いている場合は、Orca を終了して起動し直してから、もう一度お試しください。"
   }
 }
