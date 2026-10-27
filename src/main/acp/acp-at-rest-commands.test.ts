@@ -405,6 +405,7 @@ it('delivers eight healthy contexts through three queued failures using due read
   let held = 0
   let peak = 0
   const dispatches: number[] = []
+  const closeGates: ReturnType<typeof deferred<void>>[] = []
   const { catalog, children, root } = await rig((child) => {
     dispatches.push(Date.now())
     peak = Math.max(peak, ++held)
@@ -420,8 +421,10 @@ it('delivers eight healthy contexts through three queued failures using due read
       )
     })
     const prove = child.proveClose
+    const close = deferred<void>()
     child.proveClose = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 3_000))
+      closeGates.push(close)
+      await close.promise
       const result = await prove()
       held--
       return result
@@ -442,10 +445,14 @@ it('delivers eight healthy contexts through three queued failures using due read
     )
     await vi.advanceTimersByTimeAsync(8_000)
     await waitFor(() => expect(changed).toHaveBeenCalledTimes((wave + 1) * 2))
+    await waitFor(() => expect(closeGates).toHaveLength(2))
     expect(held).toBe(2)
     await vi.advanceTimersByTimeAsync(1_000)
     expect((await Promise.all(answers)).filter(Boolean)).toHaveLength((wave + 1) * 2)
     await vi.advanceTimersByTimeAsync(2_000)
+    expect(Date.now()).toBe(wave * 19_000 + 11_000)
+    expect(held).toBe(2)
+    closeGates.splice(0).forEach((close) => close.resolve())
     await waitFor(() => expect(held).toBe(0))
     await waitFor(async () =>
       expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
