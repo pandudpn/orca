@@ -1,4 +1,4 @@
-import { isWorktreePaletteQueryTooLarge } from '../worktree-palette-query-bounds'
+import { isWorktreePaletteQueryTooLarge } from './worktree-palette-query-bounds'
 import { normalizePaletteText } from './normalized-text'
 
 export const PALETTE_QUERY_MAX_TOKENS = 16
