@@ -2,8 +2,11 @@ import { afterEach, expect, it, vi } from 'vitest'
 import capture from '../../../src/shared/__fixtures__/omp-native-commands.json'
 import * as catalog from '../../../src/shared/native-chat/input/native-chat-slash-commands'
 import type { NativeChatPickerItem } from '../../../src/shared/native-chat/input/native-chat-picker-items'
-import { deriveComposerAutocomplete } from '../../../src/renderer/src/components/native-chat/native-chat-composer-state'
-import { mobileComposerSlashItems } from './native-chat/composer/mobile-native-chat-composer-menu'
+import { deriveComposerAutocomplete } from '../../../src/shared/native-chat-composer-autocomplete'
+import {
+  mobileComposerCatalog,
+  boundedMenuItems
+} from './native-chat/composer/mobile-native-chat-composer-menu'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -50,11 +53,22 @@ it('bounds native OMP picker name reads at N/10N while preserving first duplicat
         }
         rows = picker.items
       } else {
-        rows = mobileComposerSlashItems({
+        const menu = mobileComposerCatalog({
           agent: 'omp',
-          query: 'plan',
           structured: { reported, conversationCommands: [] }
         })
+        const picker = deriveComposerAutocomplete(
+          '/plan',
+          5,
+          menu.commands,
+          menu.discovery.skills,
+          menu.profile,
+          menu.discovery,
+          null,
+          menu.sessionSkills
+        )
+        expect(picker.mode).toBe('slash')
+        rows = picker.mode === 'slash' ? boundedMenuItems(picker.items) : []
       }
       const skills = rows.filter((row) => row.kind === 'skill')
       expect(skills).toHaveLength(Math.min(size, surface === 'desktop' ? 50 : 10))

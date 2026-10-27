@@ -56,10 +56,13 @@ vi.mock('../../../components/ActionSheetModal', () => ({ ActionSheetModal: 'Acti
 function card(
   overrides: Partial<MobileQueuedMessageCard> & { messageId: string }
 ): MobileQueuedMessageCard {
+  const text = overrides.text ?? `text of ${overrides.messageId}`
   return {
-    text: `text of ${overrides.messageId}`,
+    position: 1,
+    text,
+    line: text,
     state: 'waiting',
-    paused: false,
+    hold: overrides.state === 'returned' ? 'returned' : 'turn',
     needsAttention: false,
     caption: null,
     attribution: null,
@@ -315,7 +318,7 @@ describe('MobileNativeChatQueuedMessages', () => {
       cards: [
         card({
           messageId: 'failed',
-          paused: true,
+          hold: 'paused',
           needsAttention: true,
           caption: "Couldn't send — tap Send to retry"
         }),
@@ -798,7 +801,7 @@ describe('MobileNativeChatQueuedMessages', () => {
     expect(mutate).toHaveBeenCalledTimes(1)
     expect(ids()).toEqual(['c', 'a', 'b', 'd'])
     expect(list().props.canMove).toBeUndefined()
-    expect(list().props.items[0].automatic).toBe(true)
+    expect(list().props.items[0].from).toBeDefined()
     expect(
       list().props.items.every((entry: MobileQueuedMessageCard) =>
         list().props.isMoveDisabled(entry)
@@ -825,7 +828,8 @@ describe('MobileNativeChatQueuedMessages', () => {
       )
     ).toBe(true)
     act(() => expect(list().props.onMove({ movedId: 'b', afterId: 'd' })).toBe(true))
-    const published = [messages[0]!, messages[2]!, messages[3]!, messages[1]!]
+    // The host republishes the moved order with fresh positions; cards sort by position.
+    const published = [0, 2, 3, 1].map((index, position) => ({ ...messages[index]!, position }))
     await act(async () => renderer!.update(createElement(Harness, { published })))
     expect(ids()).toEqual(['a', 'c', 'd', 'b'])
     await act(async () => renderer!.unmount())

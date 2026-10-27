@@ -7,7 +7,7 @@ import { ActionSheetModal } from '../../../components/ActionSheetModal'
 import { colors } from '../../../theme/mobile-theme'
 import { useLargeSystemText } from '../../../theme/use-large-system-text'
 import type { MobileQueuedMessageCard } from '../../mobile-structured-queued-message-cards'
-import type { MobileQueuePause } from '../../mobile-structured-queued-message-feed'
+import type { AgentSessionQueuePause } from '../../../../../src/shared/agent-session-wire'
 import type { MobileQueuedMessageEdit } from '../../use-mobile-structured-queued-message-controls'
 import type { MobileQueuedMessageInlineEditor } from '../../use-mobile-structured-queued-edit'
 import { MobileQueuedMessageCardRow } from '../../MobileQueuedMessageCardRow'
@@ -28,7 +28,7 @@ export type MobileNativeChatQueuedMessagesProps = {
   onEdit?: MobileQueuedMessageEdit
   editor?: MobileQueuedMessageInlineEditor
   onMove?: (move: DragReorderMove) => Promise<boolean>
-  pause?: MobileQueuePause
+  pause?: AgentSessionQueuePause | null
   onResume?: () => Promise<boolean>
   steerHeld?: boolean
 }
@@ -212,7 +212,7 @@ export function MobileNativeChatQueuedMessages({
       </View>
       <ActionSheetModal
         visible={menuCard !== undefined}
-        title={menuCard?.text}
+        title={menuCard?.line}
         actions={[
           {
             label: 'Edit message',
