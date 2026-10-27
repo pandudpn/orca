@@ -565,7 +565,17 @@ it.each([10, 100])(
     const stat = vi.mocked(fs.stat)
     let peak = 0
     let reports = true
+    const closeGates: ReturnType<typeof deferred<void>>[] = []
     const { catalog, children, root } = await rig((child) => {
+      if (!reports) {
+        const prove = child.proveClose
+        const close = deferred<void>()
+        closeGates.push(close)
+        child.proveClose = async () => {
+          await close.promise
+          return prove()
+        }
+      }
       peak = Math.max(peak, children.filter((owner) => !owner.exited).length)
       child.agent.on('session/new', (frame) => {
         if (reports) {
@@ -577,53 +587,62 @@ it.each([10, 100])(
         child.agent.reply(frame, { sessionId: DISCOVERY_SESSION })
       })
     })
-    const records = Array.from({ length: count }, (_, index) => ompRecord(`failure-${index}`))
-    for (const record of records) {
-      expect(await catalog.settled(record, 1_000)).toBeDefined()
-    }
-    const rows = catalog.read(records[0]!)!
-    await waitFor(async () =>
-      expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
-    )
-    await waitFor(() => expect(admissions.size).toBe(0))
-    acquire.mockClear()
-    stat.mockClear()
-    reports = false
-    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
-    await vi.advanceTimersByTimeAsync(AT_REST_COMMANDS_TTL_MS)
-    const changed = vi.fn(() => records.forEach((record) => catalog.read(record)))
-    catalog.onChange(changed)
-    for (let wave = 1; wave <= 3; wave++) {
-      const answers = records.map((record) => catalog.settled(record, 10_000))
-      records.forEach((record) => expect(catalog.read(record)).toEqual(rows))
-      await waitFor(() => expect(children).toHaveLength(count + wave * 2))
-      await waitFor(() =>
-        expect(children.every((child) => child.agent.frames.at(-1)?.method === 'session/new')).toBe(
-          true
-        )
-      )
-      expect(stat).toHaveBeenCalledTimes(wave * count)
-      expect(acquire).toHaveBeenCalledTimes(wave * Math.min(count, 34))
-      expect(children.filter((child) => !child.exited)).toHaveLength(2)
-      await vi.advanceTimersByTimeAsync(9_000)
-      expect(await Promise.all(answers)).toEqual(records.map(() => rows))
+    try {
+      const records = Array.from({ length: count }, (_, index) => ompRecord(`failure-${index}`))
+      for (const record of records) {
+        expect(await catalog.settled(record, 1_000)).toBeDefined()
+      }
+      const rows = catalog.read(records[0]!)!
       await waitFor(async () =>
         expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
       )
       await waitFor(() => expect(admissions.size).toBe(0))
-      expect(changed).not.toHaveBeenCalled()
-      for (let query = 0; query < count; query++) {
-        expect(
-          buildNativeChatPickerItems([], [], 'skill:pl', '/', sessionReportedSkills(rows, 'omp'))
-        ).toEqual(expect.arrayContaining([expect.objectContaining({ token: '/skill:plan' })]))
+      acquire.mockClear()
+      stat.mockClear()
+      reports = false
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+      await vi.advanceTimersByTimeAsync(AT_REST_COMMANDS_TTL_MS)
+      const changed = vi.fn(() => records.forEach((record) => catalog.read(record)))
+      catalog.onChange(changed)
+      for (let wave = 1; wave <= 3; wave++) {
+        const answers = records.map((record) => catalog.settled(record, 10_000))
+        records.forEach((record) => expect(catalog.read(record)).toEqual(rows))
+        await waitFor(() => expect(children).toHaveLength(count + wave * 2))
+        await waitFor(() =>
+          expect(
+            children.every((child) => child.agent.frames.at(-1)?.method === 'session/new')
+          ).toBe(true)
+        )
+        expect(stat).toHaveBeenCalledTimes(wave * count)
+        expect(acquire).toHaveBeenCalledTimes(wave * Math.min(count, 34))
+        expect(children.filter((child) => !child.exited)).toHaveLength(2)
+        await vi.advanceTimersByTimeAsync(9_000)
+        expect(await Promise.all(answers)).toEqual(records.map(() => rows))
+        // Settle every queued deadline before close can release capacity within this wave.
+        expect(children.filter((child) => !child.exited)).toHaveLength(2)
+        expect(admissions.size).toBe(2)
+        closeGates.splice(0).forEach((close) => close.resolve())
+        await waitFor(async () =>
+          expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
+        )
+        await waitFor(() => expect(admissions.size).toBe(0))
+        expect(changed).not.toHaveBeenCalled()
+        for (let query = 0; query < count; query++) {
+          expect(
+            buildNativeChatPickerItems([], [], 'skill:pl', '/', sessionReportedSkills(rows, 'omp'))
+          ).toEqual(expect.arrayContaining([expect.objectContaining({ token: '/skill:plan' })]))
+        }
+        expect(stat).toHaveBeenCalledTimes(wave * count)
+        expect(children).toHaveLength(count + wave * 2)
+        // Overflow fails before queued deadlines; the next demand is due for every context.
+        await vi.advanceTimersByTimeAsync(10_000)
       }
-      expect(stat).toHaveBeenCalledTimes(wave * count)
-      expect(children).toHaveLength(count + wave * 2)
-      // Overflow fails before queued deadlines; the next demand is due for every context.
-      await vi.advanceTimersByTimeAsync(10_000)
+      await catalog.closeAll()
+      expect(peak).toBe(2)
+      expect(children.every((child) => child.exited && child.closes === 1)).toBe(true)
+    } finally {
+      closeGates.splice(0).forEach((close) => close.resolve())
+      await catalog.closeAll()
     }
-    await catalog.closeAll()
-    expect(peak).toBe(2)
-    expect(children.every((child) => child.exited && child.closes === 1)).toBe(true)
   }
 )
