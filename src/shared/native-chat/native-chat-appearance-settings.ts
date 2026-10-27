@@ -1,4 +1,4 @@
-import type { TuiAgent } from './tui-agent'
+import type { TuiAgent } from '../tui-agent'
 
 export type NativeChatAppearanceSettings = {
   /** Absent follows the IDE font. */

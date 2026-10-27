@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { claudeProcessIdentity } from './claude-structured-owner-identity'
-import { ORCA_AGENT_SESSION_SPAWN_TOKEN_ENV } from '../../shared/agent-session-caller-env'
-import { claudeProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
+import { ORCA_AGENT_SESSION_SPAWN_TOKEN_ENV } from '../../../shared/agent-session-caller-env'
+import { claudeProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
 
 const IDENTITY = {
   sessionId: 'session-identity',

@@ -1,7 +1,7 @@
 import {
   closeClaudeSession,
   claudeAcquisitionCleanupError
-} from './claude-structured-session-close'
+} from '../claude-structured-session-close'
 import type {
   ClaudeAcquisitionRegistry,
   ClaudeSession,

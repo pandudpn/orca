@@ -1,10 +1,10 @@
-import type { AgentSessionAcquisition } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
-import { openClaudeStreamJsonConnection } from './claude-stream-json-connection'
-import { buildClaudePermissionCallbacks } from './claude-structured-inbound-control'
-import { resolveClaudeReplayTurn } from './claude-replay-turn-resolution'
-import { claudeStartedUnechoedSend } from './claude-command-lifecycle'
-import { claudeSessionStateEndsTurn } from './claude-session-state-turn-over'
-import { settleClaudeTurnEndWaiters } from './claude-request-end-wait'
+import type { AgentSessionAcquisition } from '../../native-chat/agent-session-wire/structured-agent-session-adapter'
+import { openClaudeStreamJsonConnection } from '../claude-stream-json-connection'
+import { buildClaudePermissionCallbacks } from '../claude-structured-inbound-control'
+import { resolveClaudeReplayTurn } from '../claude-replay-turn-resolution'
+import { claudeStartedUnechoedSend } from '../claude-command-lifecycle'
+import { claudeSessionStateEndsTurn } from '../claude-session-state-turn-over'
+import { settleClaudeTurnEndWaiters } from '../claude-request-end-wait'
 import {
   createClaudeInitProof,
   readClaudeCapabilities,
@@ -12,25 +12,25 @@ import {
   readClaudeFrameString,
   readClaudeInit
 } from './claude-structured-init-proof'
-import { claudeConfigDirEnvPatch } from './claude-config-dir-pin'
+import { claudeConfigDirEnvPatch } from '../claude-config-dir-pin'
 import { claudeProcessIdentity } from './claude-structured-owner-identity'
-import { ClaudePromptRegistry } from './claude-structured-prompt-replies'
-import { adoptClaudeStructuredSpawnOptions } from './claude-structured-spawn-options'
-import { observeClaudeExecutionModel } from './claude-structured-execution-observations'
-import { observeClaudeFastModeFacts } from './claude-structured-session-options'
+import { ClaudePromptRegistry } from '../claude-prompt-registry'
+import { adoptClaudeStructuredSpawnOptions } from '../claude-structured-spawn-options'
+import { observeClaudeExecutionModel } from '../claude-structured-execution-observations'
+import { observeClaudeFastModeFacts } from '../claude-structured-session-options'
 import { createClaudeSessionPublication } from './claude-structured-session-publication'
 import * as sessionState from './claude-structured-session-state'
-import { resolveClaudeAcquisitionError } from './claude-structured-session-close'
-import { withObservedProviderExit } from '../native-chat/agent-session-wire/structured-agent-session-failure-text'
-import { readClaudeTranscriptEntryUuid } from './claude-transcript-entry-uuid'
-import { claudeTurnResumePointWriter } from './claude-structured-resume-point'
-import { withAgentSessionCreatePhase } from '../observability/agent-session-instrumentation'
-import { resolveClaudeAcquisitionLaunch } from './claude-structured-acquisition-launch'
+import { resolveClaudeAcquisitionError } from '../claude-structured-session-close'
+import { withObservedProviderExit } from '../../native-chat/agent-session-wire/structured-agent-session-failure-text'
+import { readClaudeTranscriptEntryUuid } from '../claude-transcript-entry-uuid'
+import { claudeTurnResumePointWriter } from '../claude-structured-resume-point'
+import { withAgentSessionCreatePhase } from '../../observability/agent-session-instrumentation'
+import { resolveClaudeAcquisitionLaunch } from '../claude-structured-acquisition-launch'
 import {
   bindClaudeConnectionJournalControls,
   createClaudeSessionJournalTranslator
-} from './claude-structured-session-journal-control'
-import { isRootClaudeFrame } from './claude-turn-opening'
+} from '../claude-structured-session-journal-control'
+import { isRootClaudeFrame } from '../claude-turn-opening'
 
 export async function acquireClaudeSession({
   input,

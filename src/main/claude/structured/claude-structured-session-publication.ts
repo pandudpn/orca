@@ -1,11 +1,11 @@
-import type { AgentSessionAcquisition } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import type { AgentSessionAcquisition } from '../../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { claudeProviderHandleLink } from './claude-structured-owner-identity'
-import type { ClaudePromptRegistry } from './claude-structured-prompt-replies'
-import type { ClaudeJournalTranslator } from './claude-journal-translator-contract'
+import type { ClaudePromptRegistry } from '../claude-prompt-registry'
+import type { ClaudeJournalTranslator } from '../claude-journal-translator-contract'
 import type { ClaudeSession } from './claude-structured-session-state'
-import { ClaudeBackgroundTaskTracker } from './claude-background-task-tracker'
-import { ClaudeChildWorkDecoder } from './claude-child-work-decoder'
-import { ClaudeSlashCommandCatalog } from './claude-slash-command-catalog'
+import { ClaudeBackgroundTaskTracker } from '../claude-background-task-tracker'
+import { ClaudeChildWorkDecoder } from '../claude-child-work-decoder'
+import { ClaudeSlashCommandCatalog } from '../claude-slash-command-catalog'
 
 export function createClaudeSessionPublication(input: {
   connection: ClaudeSession['connection']

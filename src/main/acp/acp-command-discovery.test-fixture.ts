@@ -1,3 +1,4 @@
+import { mkdirSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -38,10 +39,15 @@ export async function commandDiscoveryRig(
   overrides: Partial<AcpAtRestCommandDeps> = {}
 ) {
   const root = await mkdtemp(join(tmpdir(), 'orca-31999-commands-'))
+  const workspacePath = (id: string) => join(root, 'work', id)
   const children: CommandDiscoveryChild[] = []
   const catalog = new AcpAtRestCommandCatalog(OMP, {
     dataDirectory: root,
-    resolveWorkspacePath: async (id) => `/work/${id}`,
+    resolveWorkspacePath: async (id) => {
+      const path = workspacePath(id)
+      mkdirSync(path, { recursive: true })
+      return path
+    },
     resolveEnvironment: async () => ({ PATH: '/bin', OMP_PROFILE: 'configured' }),
     resolveCommand: () => '/configured/omp',
     probeVersion: async () => ({ version: '18.12.6' }),
@@ -72,6 +78,7 @@ export async function commandDiscoveryRig(
     catalog,
     children,
     root,
+    workspacePath,
     dispose: async () => {
       await catalog.closeAll()
       children.forEach((child) => child.agent.close())

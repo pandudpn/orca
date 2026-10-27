@@ -53,6 +53,9 @@ export class AcpAtRestCommandCatalog extends AtRestCommandCatalog {
     super({
       label: `${spec.agent}-commands`,
       scanTimeoutMs: 9_000,
+      maxFailedScans: null,
+      evictUnreadMs: null,
+      missingWorkspaceIsFailure: true,
       resolveWorkspacePath: deps.resolveWorkspacePath,
       accepts: (record) =>
         record.provider === spec.agent &&
@@ -63,8 +66,8 @@ export class AcpAtRestCommandCatalog extends AtRestCommandCatalog {
           record.location,
           deps.isWindowsProcessStartTimeAvailable
         ),
-      scan: (record, cwd, isCurrent, contextSignal) => {
-        const signal = AbortSignal.any([lifetime.signal, ...(contextSignal ? [contextSignal] : [])])
+      scan: (record, cwd, isCurrent, _generation, contextSignal) => {
+        const signal = AbortSignal.any([lifetime.signal, contextSignal])
         let answer: (value: AtRestCommandScan) => void = () => {}
         let fail: (reason: unknown) => void = () => {}
         const result = new Promise<AtRestCommandScan>((resolve, reject) => {

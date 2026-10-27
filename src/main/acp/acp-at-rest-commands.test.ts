@@ -1,4 +1,5 @@
-import { access, readdir } from 'node:fs/promises'
+import { access, mkdir, readdir, writeFile } from 'node:fs/promises'
+import { statSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -6,6 +7,7 @@ import capture from '../../shared/__fixtures__/omp-native-commands.json'
 import { buildNativeChatPickerItems } from '../../shared/native-chat/input/native-chat-picker-items'
 import { sessionReportedSkills } from '../../shared/native-chat/input/native-chat-slash-commands'
 import { AT_REST_COMMANDS_TTL_MS } from '../native-chat/agent-session-wire/at-rest-command-catalog'
+import { PrioritySemaphore } from '../../shared/priority-semaphore'
 import { refreshAtRestCommandContext } from '../native-chat/agent-session-wire/at-rest-command-context'
 import {
   commandDiscoveryRig,
@@ -13,16 +15,21 @@ import {
   ompRecord
 } from './acp-command-discovery.test-fixture'
 import { deferred, tick } from './acp-scripted-agent.test-support'
-import { waitFor } from './acp-structured-adapter.test-support'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof fs>()
-  return { ...actual, rm: vi.fn(actual.rm) }
+  return {
+    ...actual,
+    stat: vi.fn(async (path: Parameters<typeof fs.stat>[0]) => statSync(path)),
+    rm: vi.fn(actual.rm)
+  }
 })
 
 const { rm } = await vi.importActual<typeof fs>('node:fs/promises')
 
 const rigs: Awaited<ReturnType<typeof commandDiscoveryRig>>[] = []
+// Let real filesystem/protocol I/O finish without advancing the attempt's fake clock.
+const waitFor = (assertion: () => void) => vi.waitFor(assertion, { interval: 0, timeout: 2_000 })
 async function rig(...args: Parameters<typeof commandDiscoveryRig>) {
   const opened = await commandDiscoveryRig(...args)
   rigs.push(opened)
@@ -35,7 +42,7 @@ afterEach(async () => {
 })
 
 it('observes pre-initialize reports, validates session identity and keeps the latest explicit empty', async () => {
-  const { catalog, children } = await rig((child) => {
+  const { catalog, children, workspacePath } = await rig((child) => {
     child.agent.on('initialize', (frame) => {
       child.agent.notify('session/update', { sessionId: 'wrong', update: capture.enabled })
       child.agent.notify('session/update', {
@@ -56,7 +63,7 @@ it('observes pre-initialize reports, validates session identity and keeps the la
   await catalog.closeAll()
   expect(children[0]!.launch).toMatchObject({
     command: '/configured/omp',
-    cwd: '/work/workspace-1',
+    cwd: workspacePath('workspace-1'),
     args: ['acp', '--plugin-dir', '/installed/plugin', '--session-dir', expect.any(String)],
     env: { PI_CODING_AGENT_DIR: '/accounts/omp', OMP_PROFILE: 'configured' },
     envToDelete: expect.arrayContaining([
@@ -69,7 +76,10 @@ it('observes pre-initialize reports, validates session identity and keeps the la
     'initialize',
     'session/new'
   ])
-  expect(children[0]!.agent.frames[1]!.params).toEqual({ cwd: '/work/workspace-1', mcpServers: [] })
+  expect(children[0]!.agent.frames[1]!.params).toEqual({
+    cwd: workspacePath('workspace-1'),
+    mcpServers: []
+  })
   expect(children[0]!.lastCloseResult).toEqual({ root: 'exited', tree: null })
 })
 
@@ -77,34 +87,49 @@ it.each([
   ['missing', capture.enabled],
   ['wrong', capture.disabled]
 ] as const)(
-  'retains a real answer after a %s report and retries after 10 seconds',
+  'retains a real answer through three %s reports and recovers on the fourth due attempt',
   async (failure, initial) => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const recovered = initial === capture.enabled ? capture.disabled : capture.enabled
     const { catalog, children } = await rig((child) => {
       child.agent.on('session/new', (frame) => {
-        if (children.length === 1) {
-          child.agent.notify('session/update', { sessionId: DISCOVERY_SESSION, update: initial })
+        const update = children.length === 1 ? initial : children.length === 5 ? recovered : null
+        if (update) {
+          child.agent.notify('session/update', { sessionId: DISCOVERY_SESSION, update })
         } else if (failure === 'wrong') {
           child.agent.notify('session/update', { sessionId: 'wrong', update: capture.enabled })
         }
         child.agent.reply(frame, { sessionId: DISCOVERY_SESSION })
       })
     })
+    const changed = vi.fn()
+    catalog.onChange(changed)
     const record = ompRecord()
     const first = await catalog.settled(record, 1_000)
     expect(first?.map((row) => row.name)).toEqual(initial.availableCommands.map((row) => row.name))
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
     await vi.advanceTimersByTimeAsync(AT_REST_COMMANDS_TTL_MS)
-    const failed = catalog.settled(record, 10_000)
-    await waitFor(() => expect(children).toHaveLength(2))
-    await vi.advanceTimersByTimeAsync(9_000)
-    expect(await failed).toEqual(first)
-    await vi.advanceTimersByTimeAsync(9_999)
-    catalog.read(record)
-    expect(children).toHaveLength(2)
-    await vi.advanceTimersByTimeAsync(1)
-    catalog.read(record)
-    await waitFor(() => expect(children).toHaveLength(3))
+    for (let attempt = 2; attempt <= 4; attempt++) {
+      const failed = catalog.settled(record, 10_000)
+      await waitFor(() =>
+        expect(children[attempt - 1]?.agent.frames.at(-1)?.method).toBe('session/new')
+      )
+      await vi.advanceTimersByTimeAsync(9_000)
+      expect(await failed).toEqual(first)
+      await waitFor(() => expect(children[attempt - 1]?.exited).toBe(true))
+      expect(changed).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(9_999)
+      catalog.read(record)
+      expect(children).toHaveLength(attempt)
+      await vi.advanceTimersByTimeAsync(1)
+    }
+    const fourth = await catalog.settled(record, 10_000)
+    expect(fourth?.map((row) => row.name)).toEqual(
+      recovered.availableCommands.map((row) => row.name)
+    )
+    expect(children).toHaveLength(5)
+    expect(changed).toHaveBeenCalledTimes(2)
+    await catalog.closeAll()
   }
 )
 
@@ -167,6 +192,7 @@ it('settles availability at the deadline but retains admission and shutdown owne
   const { catalog, children } = await rig(undefined, { probeVersion })
   vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
   const reads = ['one', 'two', 'three'].map((id) => catalog.settled(ompRecord(id), 10_000))
+  await waitFor(() => expect(probeVersion).toHaveBeenCalledTimes(2))
   await vi.advanceTimersByTimeAsync(9_000)
   expect(await Promise.all(reads)).toEqual([undefined, undefined, undefined])
   expect(probeVersion).toHaveBeenCalledTimes(2)
@@ -222,7 +248,7 @@ it.each([10, 100, 257])(
     expect(publications).toBeLessThanOrEqual(Math.min(count, 34))
     expect(
       children.some((child) =>
-        ['/work/context-2', '/work/context-3', '/work/context-4'].includes(child.launch.cwd!)
+        [2, 3, 4].some((index) => child.launch.cwd === join(root, 'work', `context-${index}`))
       )
     ).toBe(false)
     expect(children.every((child) => child.closes === 1 && child.exited)).toBe(true)
@@ -373,3 +399,205 @@ it('handles actual root exit just before listener registration without changing 
   expect(children[0]!.closes).toBe(1)
   expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
 })
+
+it('delivers eight healthy contexts through three queued failures using due reads, with two owners through close', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  let held = 0
+  let peak = 0
+  const dispatches: number[] = []
+  const { catalog, children, root } = await rig((child) => {
+    dispatches.push(Date.now())
+    peak = Math.max(peak, ++held)
+    child.agent.on('session/new', (frame) => {
+      child.agent.reply(frame, { sessionId: DISCOVERY_SESSION })
+      setTimeout(
+        () =>
+          child.agent.notify('session/update', {
+            sessionId: DISCOVERY_SESSION,
+            update: capture.enabled
+          }),
+        8_000
+      )
+    })
+    const prove = child.proveClose
+    child.proveClose = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 3_000))
+      const result = await prove()
+      held--
+      return result
+    }
+  })
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+  vi.setSystemTime(0)
+  const records = Array.from({ length: 8 }, (_, index) => ompRecord(`healthy-${index}`))
+  const changed = vi.fn(() => records.forEach((record) => catalog.read(record)))
+  catalog.onChange(changed)
+  for (let wave = 0; wave < 4; wave++) {
+    const answers = records.map((record) => catalog.settled(record, 10_000))
+    await waitFor(() => expect(children).toHaveLength((wave + 1) * 2))
+    await waitFor(() =>
+      expect(children.every((child) => child.agent.frames.at(-1)?.method === 'session/new')).toBe(
+        true
+      )
+    )
+    await vi.advanceTimersByTimeAsync(8_000)
+    await waitFor(() => expect(changed).toHaveBeenCalledTimes((wave + 1) * 2))
+    expect(held).toBe(2)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect((await Promise.all(answers)).filter(Boolean)).toHaveLength((wave + 1) * 2)
+    await vi.advanceTimersByTimeAsync(2_000)
+    await waitFor(() => expect(held).toBe(0))
+    await waitFor(async () =>
+      expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
+    )
+    if (wave < 3) {
+      await vi.advanceTimersByTimeAsync(8_000)
+    }
+  }
+  expect(dispatches).toEqual([0, 0, 19_000, 19_000, 38_000, 38_000, 57_000, 57_000])
+  expect(Date.now()).toBe(68_000)
+  expect(peak).toBe(2)
+  expect(
+    records.every((record) => catalog.read(record)?.some((row) => row.name === 'skill:plan'))
+  ).toBe(true)
+  await catalog.closeAll()
+  expect(children.every((child) => child.closes === 1 && child.exited)).toBe(true)
+})
+
+it.each(['missing', 'file'] as const)(
+  'retains native rows for a %s physical cwd and recovers at the next ten-second read',
+  async (kind) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let cwd = ''
+    const { catalog, children, root, workspacePath } = await rig(undefined, {
+      resolveWorkspacePath: async () => cwd
+    })
+    cwd = workspacePath('physical')
+    await mkdir(cwd, { recursive: true })
+    const record = ompRecord()
+    const rows = await catalog.settled(record, 1_000)
+    expect(rows).toBeDefined()
+    const changed = vi.fn()
+    catalog.onChange(changed)
+    cwd = join(root, 'restored')
+    if (kind === 'file') {
+      await writeFile(cwd, 'not a directory')
+    }
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    await vi.advanceTimersByTimeAsync(AT_REST_COMMANDS_TTL_MS)
+    expect(await catalog.settled(record, 10_000)).toEqual(rows)
+    expect(children).toHaveLength(1)
+    expect(changed).not.toHaveBeenCalled()
+    if (kind === 'file') {
+      await rm(cwd)
+    }
+    await mkdir(cwd)
+    await vi.advanceTimersByTimeAsync(9_999)
+    expect(catalog.read(record)).toEqual(rows)
+    expect(children).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await catalog.settled(record, 10_000)).toEqual(rows)
+    expect(children).toHaveLength(2)
+    expect(children[1]!.launch.cwd).toBe(cwd)
+    expect(changed).not.toHaveBeenCalled()
+    await catalog.closeAll()
+  }
+)
+
+it('retains hour-unread native rows across unrelated reads and a failed slow refresh', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  let reports = true
+  const { catalog, children } = await rig((child) => {
+    child.agent.on('session/new', (frame) => {
+      if (reports) {
+        child.agent.notify('session/update', {
+          sessionId: DISCOVERY_SESSION,
+          update: capture.enabled
+        })
+      }
+      child.agent.reply(frame, { sessionId: DISCOVERY_SESSION })
+    })
+  })
+  const record = ompRecord('unread')
+  const rows = await catalog.settled(record, 1_000)
+  expect(rows).toBeDefined()
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+  await vi.advanceTimersByTimeAsync(3_600_001)
+  expect(await catalog.settled(ompRecord('unrelated'), 10_000)).toEqual(rows)
+  reports = false
+  expect(catalog.read(record)).toEqual(rows)
+  const refresh = catalog.settled(record, 10_000)
+  await waitFor(() => expect(children).toHaveLength(3))
+  await vi.advanceTimersByTimeAsync(9_000)
+  expect(await refresh).toEqual(rows)
+  await catalog.closeAll()
+})
+
+it.each([10, 100])(
+  'bounds repeated failed demand at %i contexts without failure broadcasts or query spawns',
+  async (count) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const acquire = vi.spyOn(PrioritySemaphore.prototype, 'acquire')
+    const stat = vi.mocked(fs.stat)
+    let peak = 0
+    let reports = true
+    const { catalog, children, root } = await rig((child) => {
+      peak = Math.max(peak, children.filter((owner) => !owner.exited).length)
+      child.agent.on('session/new', (frame) => {
+        if (reports) {
+          child.agent.notify('session/update', {
+            sessionId: DISCOVERY_SESSION,
+            update: capture.enabled
+          })
+        }
+        child.agent.reply(frame, { sessionId: DISCOVERY_SESSION })
+      })
+    })
+    const records = Array.from({ length: count }, (_, index) => ompRecord(`failure-${index}`))
+    for (const record of records) {
+      expect(await catalog.settled(record, 1_000)).toBeDefined()
+    }
+    const rows = catalog.read(records[0]!)!
+    await waitFor(async () =>
+      expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
+    )
+    acquire.mockClear()
+    stat.mockClear()
+    reports = false
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    await vi.advanceTimersByTimeAsync(AT_REST_COMMANDS_TTL_MS)
+    const changed = vi.fn(() => records.forEach((record) => catalog.read(record)))
+    catalog.onChange(changed)
+    for (let wave = 1; wave <= 3; wave++) {
+      const answers = records.map((record) => catalog.settled(record, 10_000))
+      records.forEach((record) => expect(catalog.read(record)).toEqual(rows))
+      await waitFor(() => expect(children).toHaveLength(count + wave * 2))
+      await waitFor(() =>
+        expect(children.every((child) => child.agent.frames.at(-1)?.method === 'session/new')).toBe(
+          true
+        )
+      )
+      expect(stat).toHaveBeenCalledTimes(wave * count)
+      expect(acquire).toHaveBeenCalledTimes(wave * Math.min(count, 34))
+      expect(children.filter((child) => !child.exited)).toHaveLength(2)
+      await vi.advanceTimersByTimeAsync(9_000)
+      expect(await Promise.all(answers)).toEqual(records.map(() => rows))
+      await waitFor(async () =>
+        expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
+      )
+      expect(changed).not.toHaveBeenCalled()
+      for (let query = 0; query < count; query++) {
+        expect(
+          buildNativeChatPickerItems([], [], 'skill:pl', '/', sessionReportedSkills(rows, 'omp'))
+        ).toEqual(expect.arrayContaining([expect.objectContaining({ token: '/skill:plan' })]))
+      }
+      expect(stat).toHaveBeenCalledTimes(wave * count)
+      expect(children).toHaveLength(count + wave * 2)
+      // Overflow fails before queued deadlines; the next demand is due for every context.
+      await vi.advanceTimersByTimeAsync(10_000)
+    }
+    await catalog.closeAll()
+    expect(peak).toBe(2)
+    expect(children.every((child) => child.exited && child.closes === 1)).toBe(true)
+  }
+)
