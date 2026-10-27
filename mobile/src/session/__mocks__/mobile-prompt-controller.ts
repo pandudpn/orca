@@ -8,9 +8,9 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { vi } from 'vitest'
 import { useMobileNativeChatController } from '../use-mobile-native-chat-controller'
 import { MobileNativeChatOverlay } from '../MobileNativeChatOverlay'
-import { MobileNativeChatAsk } from '../MobileNativeChatAsk'
-import type { AskAnswerSelection } from '../../../../src/shared/native-chat-ask'
-import { mobileNativeChatPromptDismissals } from '../mobile-native-chat-prompt-dismissals'
+import { MobileNativeChatAsk } from '../native-chat/input/MobileNativeChatAsk'
+import type { AskAnswerSelection } from '../../../../src/shared/native-chat-ask-answer'
+import { mobileNativeChatPromptDismissals } from '../native-chat/input/mobile-native-chat-prompt-dismissals'
 vi.mock('react-native', async () => {
   const React = await import('react')
   return {
@@ -71,8 +71,8 @@ vi.mock('../MobileNativeChatRowOverlaysHost', () => ({ MobileNativeChatRowOverla
 vi.mock('../MobileNativeChatVisual', () => ({ useMobileNativeChatVisualRenderer: () => null }))
 vi.mock('../../platform/use-reduced-motion', () => ({ useReducedMotionEnabled: () => null }))
 vi.mock('../MobileNativeChatLiveLine', () => ({ MobileNativeChatLiveLine: 'LiveStatus' }))
-vi.mock('../MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
-vi.mock('../MobileNativeChatSessionOptionPickers', () => ({
+vi.mock('../native-chat/input/MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
+vi.mock('../native-chat/input/MobileNativeChatSessionOptionPickers', () => ({
   MobileNativeChatSessionOptionPickers: 'SessionOptions'
 }))
 vi.mock('../native-chat/composer/MobileNativeChatComposerMenu', () => ({
@@ -131,7 +131,7 @@ vi.mock('../native-chat/composer/use-mobile-native-chat-drafts', () => ({
     holdUnconfirmedSend: vi.fn()
   })
 }))
-vi.mock('../use-mobile-native-chat-session-option-controller', () => ({
+vi.mock('../native-chat/input/use-mobile-native-chat-session-option-controller', () => ({
   useMobileNativeChatSessionOptionController: () => ({
     nativeChatSessionOptions: undefined,
     recordCommand: vi.fn()

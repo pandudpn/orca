@@ -1,12 +1,12 @@
 /** D2c/C6 classify watch exits against fresh running lists and guest incarnation, publishing through onChange. Boot only for visible demand; background work waits for running evidence. Use monotonic timers and reverify after resume. */
 import type { WslOrcadConnection } from './wsl-orcad-connection'
+import { WslDistroNotRunningError } from './wsl-orcad-connection-errors'
 import type { WslOrcadConnectIntent, WslOrcadConnectionStatus } from './wsl-orcad-connection-status'
 import { wslDistroHolderKey } from './wsl-distro-holder-record'
 import { recoverWslOrcad, type WslOrcadRecoveryReason } from './wsl-orcad-liveness-recovery'
 import {
   confirmsRunning,
   EXIT_SETTLE_MS,
-  failedExit,
   gatherWslLivenessEvidence
 } from './wsl-orcad-liveness-evidence'
 import {
@@ -19,6 +19,7 @@ import {
 import {
   disarmSupervised,
   isSupervisedSettling,
+  isWatchOrHolderExit,
   noteSupervisedExit,
   newSupervised,
   WSL_ORCAD_HEARTBEAT_MS,
@@ -70,7 +71,10 @@ export class WslOrcadLivenessSupervisor {
     } catch (error) {
       // Rejected updates may leave the incumbent serving; keep it watched.
       const incumbent = this.deps.manager.get(entry.distro)
-      if (incumbent && entry.generation === generation) {
+      if (error instanceof WslDistroNotRunningError && entry.generation === generation) {
+        // Arming would dial into the distro; liveness, not the refused poll, gives the verdict.
+        this.trigger(entry, { source: 'verify' })
+      } else if (incumbent && entry.generation === generation) {
         await this.arm(entry, incumbent)
       }
       throw error
@@ -119,12 +123,8 @@ export class WslOrcadLivenessSupervisor {
     if (existing) {
       return existing
     }
-    const entry = newSupervised(
-      distro,
-      key,
-      this.now(),
-      new WslOrcadReconnectBackoff(this.deps.random)
-    )
+    const backoff = new WslOrcadReconnectBackoff(this.deps.random)
+    const entry = newSupervised(distro, key, this.now(), backoff)
     this.supervised.set(key, entry)
     return entry
   }
@@ -220,7 +220,7 @@ export class WslOrcadLivenessSupervisor {
     if (entry.generation !== generation) {
       return
     }
-    if (failedExit(trigger) && confirmsRunning(running, entry.key)) {
+    if (isWatchOrHolderExit(trigger) && confirmsRunning(running, entry.key)) {
       // Stopping distros can still appear running; wait before exec accidentally boots them again.
       await new Promise<void>((resolve) => this.schedule(EXIT_SETTLE_MS, resolve))
       running = await this.deps.readRunning()
@@ -312,6 +312,8 @@ export class WslOrcadLivenessSupervisor {
 
   private async recover(entry: Supervised, reason: WslOrcadRecoveryReason): Promise<void> {
     const generation = entry.generation
+    // Recovery is never a user act: its reconnect re-checks the distro runs right before spawning.
+    const requireRunning = this.deps.requireRunning
     const gated = await recoverWslOrcad(
       {
         distro: entry.distro,
@@ -320,7 +322,7 @@ export class WslOrcadLivenessSupervisor {
         current: () => entry.generation === generation,
         wait: (delayMs) => cancellableWait(entry, this.schedule, delayMs),
         publish: (status) => this.publish(entry, status),
-        ensure: (options) => this.deps.manager.ensure(entry.distro, options),
+        ensure: (options) => this.deps.manager.ensure(entry.distro, { ...options, requireRunning }),
         collectCensus: this.deps.collectCensus,
         arm: (connection) => this.arm(entry, connection),
         readRunning: this.deps.readRunning

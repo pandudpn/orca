@@ -1,4 +1,11 @@
 {
+  "agentLaunch": {
+    "opencode": {
+      "updateRequired": "此版本的 OpenCode 无法使用所选模型安全启动。请将 OpenCode 更新到受支持的版本，或不指定模型。",
+      "invalidConfig": "OpenCode 无法将所选模型应用到启动配置。请检查 OpenCode 启动配置后重试，或不指定模型。",
+      "unsupportedLaunch": "OpenCode 无法在此次启动中应用所选模型。请使用受支持的启动参数打开新的本地终端，或不指定模型。"
+    }
+  },
   "app": {
     "saving": {
       "delayedTitle": "配置存储操作耗时比平时更长",
@@ -294,6 +301,23 @@
     "followSymlinkedDirectoriesDescription": "在快速打开中搜索链接文件夹，并在文件资源管理器中展开本地链接文件夹。",
     "accounts": {
       "claudeRemoveFolder": "Orca 会从此计算机删除此账户的 Claude 文件夹及其登录信息。与系统默认共享的聊天记录会保留。如果此账户被选中，您下次启动的 Claude 将使用系统默认。"
+    },
+    "sourceControl": {
+      "actionModel": {
+        "on": "开启",
+        "off": "关闭",
+        "invalidArgs": "{{value0}} 的 CLI 参数无效。请在设置 → Source Control AI 中修正。",
+        "model": "模型",
+        "agentDefault": "智能体默认",
+        "effortDefault": "默认",
+        "savedModel": "设置中的模型：{{value0}}",
+        "permissionsDefaultHint": "除非此操作设置了自己的 CLI 参数，否则终端使用智能体权限。",
+        "chatsOnly": "仅适用于聊天",
+        "terminalsOnly": "仅适用于终端",
+        "extraArgs": "额外 CLI 参数",
+        "launchOptions": "模型和权限",
+        "savedLaunchOptions": "已保存的选项：{{value0}}。旧版服务器使用其自身的权限设置。"
+      }
     }
   },
   "menu": {
@@ -3431,7 +3455,10 @@
               "failed": {
                 "toast": {
                   "62a0af2cb4": "无法确认终端剪贴板复制",
-                  "fdd3e7e977": "终端应用请求了复制，但 Orca 无法确认内容已写入系统剪贴板。"
+                  "fdd3e7e977": "终端应用请求了复制，但 Orca 无法确认内容已写入系统剪贴板。",
+                  "de286dcfe1": "终端复制需要点击",
+                  "84c938ffa2": "浏览器阻止了来自终端应用的复制。点击“复制”即可将文本放入剪贴板。",
+                  "a73165c6c5": "复制"
                 }
               }
             }
@@ -8092,6 +8119,10 @@
           "chatErrorEscalationNeedsChat": "请在实验性设置中开启聊天界面后使用。",
           "chatErrorEscalationKeywordError": "错误",
           "chatErrorEscalationKeywordChat": "聊天",
+          "heartbeatTitle": "工作者心跳",
+          "heartbeatDescription": "已分派的工作者每隔几分钟报告一次，让协调者能区分正在工作的智能体和卡住的智能体。关闭后发给协调者的消息会减少，但协调者也不再收到这一报告信号。仅对更改后分派的工作者生效。",
+          "heartbeatKeywordHeartbeat": "心跳",
+          "heartbeatKeywordStalled": "卡住",
           "7bc082f4de": "复制安装命令"
         },
         "OrchestrationSetupCard": {
@@ -13121,6 +13152,16 @@
           "searchPlaceholder": "搜索构建...",
           "noMatches": "没有匹配的版本。",
           "searchLabel": "搜索构建"
+        },
+        "notification": {
+          "settings": {
+            "copy": {
+              "macFailureTitle": "macOS 未显示通知",
+              "macFailureDescription": "请在系统设置中为 Orca 开启“允许通知”。",
+              "windowsFailureTitle": "Windows 未显示通知",
+              "windowsFailureDescription": "请在 Windows 设置中为 Orca 开启通知。"
+            }
+          }
         }
       },
       "right": {
@@ -13667,8 +13708,6 @@
           "SourceControlAgentActionDialogForm": {
             "7ec6abbf2a": "重置",
             "f4f3c9ca4a": "提示词模板",
-            "fe119187bb": "--model sonnet",
-            "bc8dc39f4b": "CLI 参数",
             "b99c33cec5": "设置",
             "15c5d85706": "智能体",
             "3e8f21954f": "错误",
@@ -15681,6 +15720,9 @@
             "0d6efe9cf4": "当项目或工作树位于受保护文件夹时，建议在 macOS 上开启。",
             "dac08ec03e": "正在打开...",
             "6e3d62b816": "打开完全磁盘访问权限"
+          },
+          "FeatureWallTourSurface": {
+            "reopenHint": "可随时从 帮助 > 探索 Orca 重新打开。"
           }
         },
         "tips": {
@@ -15707,7 +15749,8 @@
             "53905bd076": "开发预览：打开技能设置终端。",
             "1da82af45b": "Orca CLI 需要注意",
             "ce13a742d0": "在 PATH 中注册了 `orca`。",
-            "d1a86c7eb5": "打开“设置”以完成 CLI 设置。"
+            "d1a86c7eb5": "打开“设置”以完成 CLI 设置。",
+            "cliInstallFailed": "无法安装 Orca CLI。"
           },
           "CmdJPaletteFeatureTipVisual": {
             "ab94e16d44": "创建工作树“{{value0}}”",
@@ -16712,6 +16755,17 @@
           },
           "copy": {
             "copyFailed": "无法复制崩溃报告详细信息。"
+          },
+          "CrashReportDialogSurface": {
+            "reportTitle": "报告崩溃",
+            "uiErrorTitle": "Orca 遇到了可恢复的界面错误",
+            "closedTitle": "Orca 意外关闭",
+            "reportDescription": "发送一份保护隐私的崩溃报告。如有可用，会附上最近经过脱敏的诊断日志。",
+            "uiErrorDescription": "发送一份保护隐私的诊断报告，帮助我们了解出错的界面部分。",
+            "closedDescription": "发送一份保护隐私的诊断报告，帮助我们了解发生了什么。",
+            "reportNotesPlaceholder": "可选：发生了什么？",
+            "uiErrorNotesPlaceholder": "可选：出现此界面错误前你在做什么？",
+            "closedNotesPlaceholder": "可选：Orca 关闭前你在做什么？"
           }
         }
       },
