@@ -20,6 +20,8 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   return { ...actual, rm: vi.fn(actual.rm) }
 })
 
+const { rm } = await vi.importActual<typeof fs>('node:fs/promises')
+
 const rigs: Awaited<ReturnType<typeof commandDiscoveryRig>>[] = []
 async function rig(...args: Parameters<typeof commandDiscoveryRig>) {
   const opened = await commandDiscoveryRig(...args)
@@ -320,7 +322,6 @@ it.each([
     children.forEach((child) => child.agent.close())
     expect(children.every((child) => child.rootVerdict === root)).toBe(true)
     const cleanup = deferred<void>()
-    const { rm } = await vi.importActual<typeof fs>('node:fs/promises')
     const remove = vi
       .mocked(fs.rm)
       .mockClear()
