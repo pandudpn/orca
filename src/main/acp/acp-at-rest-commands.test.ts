@@ -544,7 +544,24 @@ it.each([10, 100])(
   'bounds repeated failed demand at %i contexts without failure broadcasts or query spawns',
   async (count) => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const acquire = vi.spyOn(PrioritySemaphore.prototype, 'acquire')
+    const originalAcquire = PrioritySemaphore.prototype.acquire
+    const admissions = new Set<symbol>()
+    const acquire = vi
+      .spyOn(PrioritySemaphore.prototype, 'acquire')
+      .mockImplementation(async function (this: PrioritySemaphore, priority, signal) {
+        const request = Symbol()
+        admissions.add(request)
+        try {
+          const release = await originalAcquire.call(this, priority, signal)
+          return () => {
+            release()
+            admissions.delete(request)
+          }
+        } catch (error) {
+          admissions.delete(request)
+          throw error
+        }
+      })
     const stat = vi.mocked(fs.stat)
     let peak = 0
     let reports = true
@@ -568,6 +585,7 @@ it.each([10, 100])(
     await waitFor(async () =>
       expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
     )
+    await waitFor(() => expect(admissions.size).toBe(0))
     acquire.mockClear()
     stat.mockClear()
     reports = false
@@ -592,6 +610,7 @@ it.each([10, 100])(
       await waitFor(async () =>
         expect(await readdir(join(root, 'acp-command-sessions', 'omp'))).toEqual([])
       )
+      await waitFor(() => expect(admissions.size).toBe(0))
       expect(changed).not.toHaveBeenCalled()
       for (let query = 0; query < count; query++) {
         expect(
