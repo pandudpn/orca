@@ -10,7 +10,12 @@ import {
   type ProjectExecutionRuntimeResolution
 } from '../../../shared/project-execution-runtime'
 import type * as localPreflightContext from '@/lib/local-preflight-context'
-import { makeTerminalTab } from '@/store/slices/worktrees-slice-test-fixtures'
+import { resolveAgentResumeLaunchTarget } from '@/lib/agent-resume-launch-target'
+import {
+  makeTerminalTab,
+  makeWorktree,
+  TEST_REPO
+} from '@/store/slices/worktrees-slice-test-fixtures'
 import {
   buildPaneAccountRestartStartup,
   resolveAgentAccountRestartResumeStartup,
@@ -18,6 +23,8 @@ import {
 } from './agent-account-restart-startup'
 
 let projectRuntimeContext: ProjectExecutionRuntimeResolution | undefined
+
+vi.mock('@/lib/agent-resume-launch-target', { spy: true })
 
 vi.mock('@/lib/local-preflight-context', async (importOriginal) => ({
   ...(await importOriginal<typeof localPreflightContext>()),
@@ -203,6 +210,7 @@ describe('buildPaneAccountRestartStartup for Claude', () => {
   beforeEach(() => {
     seedAgentStatus(null)
     projectRuntimeContext = undefined
+    useAppStore.setState({ tabsByWorktree: {}, worktreesByRepo: {} })
   })
 
   it('resumes the pane’s Claude session with the launch marks the spawn needs', () => {
@@ -287,6 +295,76 @@ describe('buildPaneAccountRestartStartup for Claude', () => {
     expect(buildPaneAccountRestartStartup('claude', pane)?.command).toBe(
       `cd '/repo/pkg' && claude '--resume' '${SESSION_ID}'`
     )
+  })
+
+  it('falls back to the workspace folder when the tab records no start folder', () => {
+    seedAgentStatus({
+      agentType: 'claude',
+      state: 'done',
+      providerSession: { key: 'session_id', id: SESSION_ID, cwd: '/repo/pkg' }
+    })
+    useAppStore.setState({
+      tabsByWorktree: { [WORKTREE_ID]: [makeTerminalTab({ id: TAB_ID, worktreeId: WORKTREE_ID })] },
+      worktreesByRepo: { r1: [makeWorktree({ id: WORKTREE_ID, repoId: 'r1', path: '/repo' })] }
+    })
+
+    expect(buildPaneAccountRestartStartup('claude', pane)?.command).toBe(
+      `cd '/repo/pkg' && claude '--resume' '${SESSION_ID}'`
+    )
+  })
+
+  it.each([
+    ['workspace folder', undefined, "cd '/recorded/session' && "],
+    ['saved tab folder', '/recorded/session', '']
+  ] as const)('uses the selected host and respects the %s on resume', (_, startupCwd, prefix) => {
+    const original = useAppStore.getState()
+    try {
+      seedAgentStatus({
+        agentType: 'claude',
+        state: 'done',
+        providerSession: { key: 'session_id', id: SESSION_ID, cwd: '/recorded/session' }
+      })
+      useAppStore.setState({
+        repos: [
+          TEST_REPO,
+          { ...TEST_REPO, executionHostId: 'runtime:remote-host', connectionId: 'selected-ssh' }
+        ],
+        worktreesByRepo: {
+          [TEST_REPO.id]: [
+            makeWorktree({
+              id: WORKTREE_ID,
+              repoId: TEST_REPO.id,
+              path: '/recorded/session',
+              hostId: 'local'
+            }),
+            makeWorktree({
+              id: WORKTREE_ID,
+              repoId: TEST_REPO.id,
+              path: '/remote/workspace',
+              hostId: 'runtime:remote-host'
+            })
+          ]
+        },
+        detectedWorktreesByRepo: {},
+        activeWorktreeId: WORKTREE_ID,
+        activeWorkspaceExecutionHostId: 'runtime:remote-host',
+        tabsByWorktree: {
+          [WORKTREE_ID]: [makeTerminalTab({ id: TAB_ID, worktreeId: WORKTREE_ID, startupCwd })]
+        }
+      })
+
+      expect(buildPaneAccountRestartStartup('claude', pane)?.command).toBe(
+        `${prefix}claude '--resume' '${SESSION_ID}'`
+      )
+      expect(resolveAgentResumeLaunchTarget).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          executionHostId: 'runtime:remote-host',
+          connectionId: 'selected-ssh'
+        })
+      )
+    } finally {
+      useAppStore.setState(original)
+    }
   })
 
   it('reports no resume when the Claude pane has no session id', () => {

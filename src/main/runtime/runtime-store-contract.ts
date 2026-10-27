@@ -114,6 +114,7 @@ export type RuntimeStore = {
     nestedWorkerMaxDepth?: GlobalSettings['nestedWorkerMaxDepth']
     orchestrationChatErrorEscalationEnabled?: GlobalSettings['orchestrationChatErrorEscalationEnabled']
     orchestrationHeartbeatsEnabled?: GlobalSettings['orchestrationHeartbeatsEnabled']
+    orchestrationHeartbeatIntervalMinutes?: GlobalSettings['orchestrationHeartbeatIntervalMinutes']
     workspaceDir: string
     nestWorkspaces: boolean
     workspaceDirHistory?: GlobalSettings['workspaceDirHistory']
@@ -158,6 +159,7 @@ export type RuntimeStore = {
     minimaxEndpoint?: GlobalSettings['minimaxEndpoint']
     zcodePlanSite?: GlobalSettings['zcodePlanSite']
     prBotAuthorOverrides?: GlobalSettings['prBotAuthorOverrides']
+    sourceControlGroupOrder?: GlobalSettings['sourceControlGroupOrder']
     artifactSharingEnabled?: GlobalSettings['artifactSharingEnabled']
     terminalQuickCommands?: GlobalSettings['terminalQuickCommands']
     gitlabProjects?: GlobalSettings['gitlabProjects']
