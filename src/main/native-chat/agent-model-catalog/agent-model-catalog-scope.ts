@@ -1,8 +1,5 @@
 import { homedir } from 'node:os'
-import type {
-  AgentSessionAccountHome,
-  AgentSessionRecord
-} from '../../../shared/agent-session-record'
+import type { AgentSessionAccountHome } from '../../../shared/agent-session-record'
 import { isNativeLocalLocation } from '../../../shared/execution-host'
 import type {
   AgentModelCatalogService,
@@ -11,15 +8,16 @@ import type {
 import { agentModelCatalogScopeFingerprint } from './agent-model-catalog-fingerprint'
 import {
   independentAgentModelCatalog,
+  type AgentModelCatalogLookup,
   type AgentModelCatalogResolvedProbe
 } from './agent-model-catalog-discovery'
-import { sessionWorkspacePath } from './agent-model-catalog-workspace'
+import { sessionWorkspacePath, type AgentModelCatalogRecord } from './agent-model-catalog-workspace'
 
-/** Launch configuration determines discovery scope; a chat's choices never participate. */
+/** Discovery follows launch configuration, never session picks. */
 export async function resolveAgentModelCatalogScope(
   deps: AgentModelCatalogServiceDeps,
   params: Parameters<AgentModelCatalogService['read']>[0],
-  record: AgentSessionRecord | undefined,
+  record: AgentModelCatalogRecord | undefined,
   base: string,
   home: AgentSessionAccountHome | null
 ): Promise<{
@@ -36,11 +34,16 @@ export async function resolveAgentModelCatalogScope(
     return { base, fingerprint: base, exact: false }
   }
   const probe = deps.probes?.[params.agent]
+  const savedOnly = () => params.savedOnly || !!(record && !deps.getRecord(record.sessionId))
   if (params.legacy) {
-    const resolved = params.savedOnly ? null : await probe?.resolveLegacy?.(home).catch(() => null)
+    const fingerprint = agentModelCatalogScopeFingerprint(base, 'legacy-account')
+    const resolved =
+      savedOnly() || !deps.store.probeDue(fingerprint)
+        ? null
+        : await probe?.resolveLegacy?.(home).catch(() => null)
     return {
       base,
-      fingerprint: agentModelCatalogScopeFingerprint(base, 'legacy-account'),
+      fingerprint,
       exact: false,
       ...(resolved ? { resolved } : {})
     }
@@ -52,16 +55,21 @@ export async function resolveAgentModelCatalogScope(
   if (!cwd) {
     return { base, fingerprint: base, exact: false }
   }
-  const resolution = params.savedOnly
-    ? probe?.resolve?.(home, cwd, true)
-    : probe?.resolve?.(home, cwd)
-  const resolved = await resolution?.catch(() => null)
+  const resolve = (lookup: AgentModelCatalogLookup) =>
+    probe?.resolve?.(home, cwd, lookup).catch(() => null)
+  const scopeKey = (resolved: AgentModelCatalogResolvedProbe | null | undefined) =>
+    agentModelCatalogScopeFingerprint(base, cwd, resolved?.identity)
+  let resolved = await resolve(savedOnly() ? 'saved' : 'snapshot')
+  // Rerun shells only for reads due to list; saved-only reads must remain passive.
+  if (!savedOnly() && (!resolved || deps.store.probeDue(scopeKey(resolved)))) {
+    resolved = await resolve('recover')
+  }
   if (probe?.resolve && !resolved) {
     return null
   }
   return {
     base,
-    fingerprint: agentModelCatalogScopeFingerprint(base, cwd, resolved?.identity),
+    fingerprint: scopeKey(resolved),
     exact: true,
     cwd,
     ...(resolved ? { resolved } : {})

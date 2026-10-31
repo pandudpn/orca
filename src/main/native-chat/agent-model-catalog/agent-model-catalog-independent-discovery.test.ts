@@ -1,3 +1,4 @@
+import { agentSessionConversationView } from '../../../shared/agent-session-conversation-view'
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import { agentSessionRecordFixture } from '../agent-session-record-test-fixture'
@@ -49,6 +50,10 @@ function harness() {
   const probe: AgentModelCatalogProbe = Object.assign(async () => run(), { resolve })
   const service = createAgentModelCatalogService({
     store,
+    getConversation: (id) => {
+      const saved = record(id, id === 'a' ? 'old' : 'another')
+      return saved ? agentSessionConversationView(saved) : undefined
+    },
     getRecord: (id) => record(id, id === 'a' ? 'old' : 'another'),
     drivesRecord: () => true,
     resolveAccountHome: async () => HOME,
@@ -60,7 +65,6 @@ function harness() {
     store,
     service,
     run,
-    resolve,
     update: (next: AgentModelCatalogSuccess) => {
       now += 120001
       installed = next
@@ -103,7 +107,6 @@ describe('independent installed CLI discovery', () => {
       h.read('b', { waitForListing: true })
     ])
     expect(h.run).toHaveBeenCalledTimes(1)
-    expect(h.resolve.mock.calls.every((call) => call.length === 2)).toBe(true)
     expect(h.service.peek('a', true)).toBe(h.service.peek('b', true))
     expect(await h.read('b')).toMatchObject({
       models: [{ id: 'old', isDefault: true, defaultEffort: 'high' }]

@@ -1,13 +1,18 @@
-import { memo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { memo, useEffect, useRef, useLayoutEffect, useState } from 'react'
 import { Package, RotateCcw } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import type { SkillSourceKind } from '../../../../shared/skills'
 import { FilenameFirstPath } from '@/components/file-path-cursor-tooltip'
 import { FileTypeIcon } from '@/components/FileTypeIcon'
-import type { ComposerAutocomplete, NativeChatPickerItem } from './native-chat-composer-state'
+import type {
+  ComposerAutocomplete,
+  NativeChatPickerItem
+} from '../../../../shared/native-chat-composer-autocomplete'
 import type { NativeChatMentionFiles } from './use-native-chat-mention-files'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { localizeSlashCommandDescription } from './native-chat-slash-command-descriptions'
 
 export const NativeChatPickerMenu = memo(function NativeChatPickerMenu({
   autocomplete,
@@ -182,10 +187,8 @@ function PickerOption({
 }): React.JSX.Element {
   const annotation = getPickerAnnotation(item)
   const description =
-    item.kind === 'command' &&
-    item.name === 'clear' &&
-    item.description === 'Clear conversation context'
-      ? translate('components.native-chat.composer.clearDescription', 'Clear conversation context')
+    item.kind === 'command'
+      ? localizeSlashCommandDescription(item.name, item.description)
       : item.description
   return (
     <PickerOptionButton
@@ -231,14 +234,57 @@ function PickerListbox({
   id: string
   children: React.ReactNode
 }): React.JSX.Element {
+  const marker = useRef<HTMLSpanElement>(null)
+  const [bounds, setBounds] = useState<DOMRect | null>(null)
+  useLayoutEffect(() => {
+    const anchor = marker.current?.parentElement
+    if (!anchor) {
+      return
+    }
+    const measure = (): void => {
+      const next = anchor.getBoundingClientRect()
+      setBounds((current) =>
+        current?.left === next.left && current.width === next.width && current.top === next.top
+          ? current
+          : next
+      )
+    }
+    const ancestors: HTMLElement[] = []
+    for (let parent: HTMLElement | null = anchor; parent; parent = parent.parentElement) {
+      ancestors.push(parent)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(anchor)
+    ancestors.forEach((parent) => parent.addEventListener('scroll', measure))
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      ancestors.forEach((parent) => parent.removeEventListener('scroll', measure))
+      window.removeEventListener('resize', measure)
+    }
+  }, [])
   return (
-    <div
-      id={id}
-      role="listbox"
-      className="scrollbar-sleek absolute bottom-full left-0 right-0 z-20 mb-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-[0_10px_24px_rgba(0,0,0,0.18)]"
-    >
-      {children}
-    </div>
+    <>
+      <span ref={marker} />
+      {bounds &&
+        createPortal(
+          <div
+            id={id}
+            role="listbox"
+            style={{
+              position: 'fixed',
+              left: bounds.left,
+              width: bounds.width,
+              bottom: window.innerHeight - bounds.top + 4
+            }}
+            className="scrollbar-sleek z-50 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-floating"
+          >
+            {children}
+          </div>,
+          marker.current?.closest('.native-chat-appearance') ?? document.body
+        )}
+    </>
   )
 }
 
@@ -263,16 +309,16 @@ function PickerOptionButton({
       aria-selected={selected}
       type="button"
       onPointerDown={(event) => {
-        // Why: the textarea owns query and caret state, so pointer acceptance
-        // must run before the browser transfers focus to this row.
+        // Accept before focus transfer because the textarea owns query and caret state.
         event.preventDefault()
         if (event.button === 0) {
           onChoose()
         }
       }}
       className={cn(
-        'flex w-full items-start gap-2 rounded-md border border-transparent px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground',
-        selected && 'border-border bg-accent text-accent-foreground'
+        'flex w-full items-start gap-2 rounded-md border border-transparent px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground hover:[--muted-foreground:var(--accent-foreground)]',
+        selected &&
+          'border-border bg-accent text-accent-foreground [--muted-foreground:var(--accent-foreground)]'
       )}
     >
       {children}
@@ -291,8 +337,7 @@ function getPickerAnnotation(item: NativeChatPickerItem): string | null {
     )
   }
   if (item.kind === 'skill' && item.sources.length > 1) {
-    // Why: name the interpolation `sourceCount`, not `count` — a `count` option
-    // makes i18next resolve plural-suffixed keys that these locales don't define.
+    // Use sourceCount because i18next treats count as pluralization input and these keys have no plural variants.
     return translate(
       'components.native-chat.composer.skillMultipleSources',
       '{{sourceCount}} sources - agent resolves',

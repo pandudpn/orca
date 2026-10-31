@@ -90,8 +90,7 @@ export async function readFileInChunks(reader: ChunkedFileReader): Promise<Paged
       break
     }
   }
-  // Why: chunks are separate reads, so a rewrite between them (a PDF rebuild) would splice two
-  // versions into one corrupt file.
+  // Separate chunks can straddle rewrites such as PDF rebuilds; validate metadata to avoid splicing corrupt versions.
   const after = await reader.stat()
   if (
     offset !== before.size ||
@@ -102,6 +101,16 @@ export async function readFileInChunks(reader: ChunkedFileReader): Promise<Paged
     throw new Error(REMOTE_FILE_CHANGED_DURING_READ_MESSAGE)
   }
   return { kind: 'ok', bytes }
+}
+
+/** A binary the host refused as text: only images and PDFs preview, so no other is fetched. */
+export async function readRemoteBinaryFile(
+  address: RuntimeRemoteFileAddress,
+  options: { pageOversized: boolean }
+): Promise<RuntimeFilePreviewResult> {
+  return previewableBinaryMimeType(address.relativePath)
+    ? readRemoteFilePreview(address, options)
+    : { content: '', isBinary: true }
 }
 
 /** `files.readPreview`, falling back to a chunked read when the file is too large for one reply. */
