@@ -3,7 +3,7 @@ import type { Repo } from '../../shared/repo-types'
 import { tuiAgentToAgentKind } from '../../shared/agent-kind'
 import { getDefaultSettings } from '../../shared/constants'
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
-import type { AgentLaunchRuntime } from '../../shared/agent-launch-runtime'
+import type { AgentLaunchRuntime } from '../../shared/agent-launch/startup/agent-launch-runtime'
 
 const mocks = vi.hoisted(() => ({
   detectInstalledAgentsWithShellPathHydration: vi.fn()
@@ -367,6 +367,9 @@ describe('resolveWorktreeStartupDraftAgent', () => {
       resolve({ defaultTuiAgent: 'claude', disabledTuiAgents: ['codex'] }, 'codex')
     ).resolves.toBe('gemini')
     expect(mocks.detectInstalledAgentsWithShellPathHydration).toHaveBeenCalledTimes(1)
+    expect(mocks.detectInstalledAgentsWithShellPathHydration).toHaveBeenCalledWith(undefined, {
+      disabledTuiAgents: ['codex']
+    })
   })
 
   it('starts no agent when the default is blank', async () => {
@@ -378,6 +381,10 @@ describe('resolveWorktreeStartupDraftAgent', () => {
     mocks.detectInstalledAgentsWithShellPathHydration.mockResolvedValue(['codex', 'claude'])
 
     await expect(resolve({ disabledTuiAgents: ['codex'] })).resolves.toBe('claude')
+    expect(mocks.detectInstalledAgentsWithShellPathHydration).toHaveBeenCalledExactlyOnceWith(
+      undefined,
+      { disabledTuiAgents: ['codex'] }
+    )
   })
 
   // An unserved SSH host cannot be answered by local detection.

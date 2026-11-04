@@ -1,6 +1,7 @@
 // How Orca starts each ACP agent, as data: adding an agent is one more row (plus a dialect when it
 // speaks protocol extensions). Nothing outside `acp-dialects/` branches on an agent's name.
 
+import type { AcpHistoryTurnIdentity } from './history/acp-history-replay'
 import { join } from 'node:path'
 import type { AcpDialect } from './acp-dialects/acp-dialect'
 import { GROK_ACP_DIALECT } from './acp-dialects/grok-dialect'
@@ -11,9 +12,9 @@ import { directoryAccountBinding, type AcpAccountBinding } from './acp-account-b
 import { openCodeAcpAccountBinding } from '../opencode/opencode-structured-account-home'
 import { scrubOpenCodeAcpEnvironment } from '../opencode/opencode-acp-environment'
 import { ompMcpServerFiles, readAcpMcpServers, type AcpMcpServersRead } from './acp-mcp-servers'
-import type { TuiAgent } from '../../shared/tui-agent'
-import type { AgentSessionModelOption } from '../../shared/agent-session-wire'
-import type { AgentChatPermissionMode } from '../../shared/agent-chat-permission-mode'
+import type { TuiAgent } from '../../shared/agent-launch/catalog/tui-agent'
+import type { AgentSessionModelOption } from '../../shared/agent-session/agent-session-wire'
+import type { AgentChatPermissionMode } from '../../shared/agent-launch/permissions/agent-chat-permission-mode'
 import type { InitializeResponse } from './generated/acp-protocol.generated'
 import { compareAppVersions } from '../../shared/app-version'
 import type { ManagedRuntime } from '../node-runtime/managed-runtime-release'
@@ -22,7 +23,7 @@ import {
   OPENCODE_MODEL_LISTING_ARGS,
   parseOpenCodeModelListing
 } from '../opencode/opencode-model-catalog-listing'
-import { agentSessionSignInFor } from '../../shared/agent-session-sign-in'
+import { agentSessionSignInFor } from '../../shared/agent-session/lifecycle/agent-session-sign-in'
 import {
   loadGrokVisualsSkill,
   loadOmpVisualsSkill,
@@ -151,10 +152,13 @@ export type AcpLaunchSpec = {
   imagePrompts?: true
   /** The agent compacts its conversation when sent `/compact` as a prompt; off hides `/compact`. */
   compaction?: true
-  /** Throws when the chat's own arguments would send a copied conversation's CLI elsewhere than
-   *  the store the copy is written to. */
-  assertCopyLaunchArgs?: (args: readonly string[]) => void
-  /** The agent's own store of a session's user messages, read for restart recovery only. */
+  /** The agent's `/compact` honours text after the command; others would silently drop it. */
+  compactionInstructions?: true
+  /** Rejects copy arguments that route the CLI away from the copy's store. */
+  assertCopyLaunchArgs?: (args: readonly string[], prefixArgs?: readonly string[]) => void
+  /** How the agent names each turn its reopen replays, when a reopened chat catches up on the
+   *  turns made outside it; absent, the replay is only dropped. */
+  historyCatchUp?: AcpHistoryTurnIdentity
   modelDiscovery: AcpModelDiscovery
   /** How a launch loads the inline-visuals skill; absent, the agent's chats have no visuals. */
   visualsSkill?: AcpVisualsSkillLoader
@@ -299,6 +303,7 @@ const OMP_LAUNCH_SPEC: AcpLaunchSpec = {
   },
   visualsSkill: loadOmpVisualsSkill,
   compaction: true,
+  compactionInstructions: true,
   transcriptImport: OMP_TRANSCRIPT_IMPORT,
   sessionHistory: OMP_SESSION_HISTORY
 }

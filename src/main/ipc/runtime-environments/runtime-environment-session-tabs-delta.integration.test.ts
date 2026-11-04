@@ -9,8 +9,8 @@ import type { RuntimeRpcResponse } from '../../../shared/runtime-rpc-envelope'
 import {
   addEnvironmentFromPairingCode,
   resolveEnvironment
-} from '../../../shared/runtime-environment-store'
-import { getPreferredPairedRuntimeConnection } from '../../../shared/runtime-environments'
+} from '../../../shared/remote-runtime/host-store/runtime-environment-store'
+import { getPreferredPairedRuntimeConnection } from '../../../shared/remote-runtime/host-catalog/runtime-environments'
 import { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { OrcaRuntimeRpcServer } from '../../runtime/runtime-rpc'
 import { makeStore, SESSION_WORKTREE_ID } from '../../runtime/paired-client-navigation-test-harness'
@@ -163,18 +163,16 @@ describe('session.tabs tab delta across mixed client versions', () => {
     )
     cleanups.push(() => currentSubscription.close())
 
-    await vi.waitFor(() => {
-      expect(legacy.frames).toHaveLength(1)
-      expect(current.frames).toHaveLength(1)
-      expect(wire.frames).toHaveLength(1)
-    })
+    const expectFrames = (count: number): void => {
+      for (const [client, received] of Object.entries({ legacy, current, wire })) {
+        expect(received.frames, `${client} desktop frames`).toHaveLength(count)
+      }
+    }
+    // Three pairings and real sockets must deliver the first frame; a loaded host misses the 1 s default.
+    await vi.waitFor(() => expectFrames(1), { timeout: 10_000 })
     for (let version = 2; version <= 11; version += 1) {
       publish(runtime, version, version % 3)
-      await vi.waitFor(() => {
-        expect(legacy.frames).toHaveLength(version)
-        expect(current.frames).toHaveLength(version)
-        expect(wire.frames).toHaveLength(version)
-      })
+      await vi.waitFor(() => expectFrames(version))
     }
 
     expect(current.frames).toEqual(legacy.frames)

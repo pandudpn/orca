@@ -42,8 +42,8 @@ const stepCopy = {
     },
     get subtitle() {
       return translate(
-        'auto.components.onboarding.OnboardingFlow.04ae28d8ca',
-        'Pick the look you want to stare at for hours.'
+        'components.onboarding.theme.subtitle',
+        'Choose light or dark, then optionally a theme. Change either any time in Settings.'
       )
     }
   },
@@ -279,9 +279,11 @@ export default function OnboardingFlow({
                 )
               })}
               <span className="ml-3 text-xs font-medium text-muted-foreground">
-                {flow.progressStepIndex + 1}{' '}
-                {translate('auto.components.onboarding.OnboardingFlow.4db04f2f57', 'of')}{' '}
-                {flow.progressSteps.length}
+                {translate(
+                  'auto.components.onboarding.OnboardingFlow.stepOfTotal',
+                  '{{current}} of {{total}}',
+                  { current: flow.progressStepIndex + 1, total: flow.progressSteps.length }
+                )}
               </span>
             </div>
 
@@ -329,6 +331,8 @@ export default function OnboardingFlow({
                   onThemeChange={flow.setTheme}
                   settings={flow.settings}
                   updateSettings={flow.updateSettings}
+                  lookBaseline={flow.themeLookBaseline}
+                  onLookBaselineChange={flow.setThemeLookBaseline}
                 />
               )}
               {currentStep.id === 'notifications' && (

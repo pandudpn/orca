@@ -13,20 +13,23 @@ import { clearProviderPtyState } from '../ipc/pty/provider/state-cleanup'
 import { agentHookServer } from '../agent-hooks/server'
 import { toAgentStatusIpcPayload } from '../agent-hooks/server/server-status-identity'
 import { browserManager } from '../browser/browser-manager'
-import { browserSessionRegistry } from '../browser/browser-session-registry'
+import { browserSessionRegistry } from '../browser/sessions/browser-session-registry'
 import { loadAgentSessionClaimSigner } from '../runtime/agent-session/ownership/agent-session-claim-identity'
 import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
-import { codexAiVaultSessionResumePreparation } from '../codex/codex-ai-vault-session-resume'
+import { codexAiVaultSessionResumePreparation } from '../codex/history/resume/codex-ai-vault-session-resume'
 import { prepareCodexPinnedLaunchHome } from './codex-session-resume-launch'
-import { resolveHostCodexSessionSourceHome } from '../codex/codex-session-source-home'
+import { resolveHostCodexSessionSourceHome } from '../codex/history/rollouts/codex-session-source-home'
 import { agentHookRuntimeDeps } from '../agent-hooks/agent-hook-runtime-deps'
 import { getDaemonProvider } from '../daemon/daemon-provider-state'
-import type { TerminalSideEffectBatch } from '../../shared/terminal-side-effect-facts'
-import type { OrchestrationEnvironmentTransport } from '../runtime/orchestration/environment-transport'
-import { resolveEnvironment } from '../../shared/runtime-environment-store'
-import { resolveTuiAgentLaunchEnv } from '../../shared/tui-agent-launch-defaults'
-import { getPreferredPairedRuntimeConnection } from '../../shared/runtime-environments'
-import { fingerprintOrchestrationPeer } from '../runtime/orchestration/environment-transport'
+import type { TerminalSideEffectBatch } from '../../shared/terminal/output/terminal-side-effect-facts'
+
+import { resolveEnvironment } from '../../shared/remote-runtime/host-store/runtime-environment-store'
+import { resolveTuiAgentLaunchEnv } from '../../shared/agent-launch/choices/tui-agent-launch-defaults'
+import { getPreferredPairedRuntimeConnection } from '../../shared/remote-runtime/host-catalog/runtime-environments'
+import {
+  type OrchestrationEnvironmentTransport,
+  pairedOrchestrationPeers
+} from '../runtime/orchestration/environment-transport'
 import { callRuntimeEnvironment } from '../ipc/runtime-environments/runtime-environment-transport-routing'
 import { mainProcessState as state } from './main-process-state'
 import { suspendEphemeralVmWorkspace } from '../ephemeral-vm/workspace-suspend'
@@ -47,6 +50,8 @@ import {
 import { startAgentStateRulesLiveUpdates } from '../runtime/agent-state-rules/agent-state-rules-live-update'
 import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../shared/layout-owner-switch'
+import { getRuntimeEnvironmentRegistryRoot } from '../ipc/runtime-environments/runtime-environment-registry-root'
+import { openOffscreenBrowserPageLink } from '../runtime/browser/offscreen-browser-page-link'
 
 export function getDesktopWindowStatus(): RuntimeDesktopWindowStatus {
   const activation = state.desktopActivationGate
@@ -65,18 +70,18 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
   }
   const orchestrationEnvironmentTransport: OrchestrationEnvironmentTransport = {
     resolve: (selector) => {
-      const environment = resolveEnvironment(app.getPath('userData'), selector)
+      const environment = resolveEnvironment(getRuntimeEnvironmentRegistryRoot(), selector)
       const connection = getPreferredPairedRuntimeConnection(environment)
       return {
         environmentId: environment.id,
         name: environment.name,
-        peerFingerprint: fingerprintOrchestrationPeer(connection.hostPublicKeyB64),
+        ...pairedOrchestrationPeers(connection.hostPublicKeyB64, connection.credential.deviceToken),
         pairingRevision: environment.pairingRevision ?? environment.createdAt
       }
     },
     call: (selector, method, params, timeoutMs, envelope, expectedPairingRevision) =>
       callRuntimeEnvironment(
-        app.getPath('userData'),
+        getRuntimeEnvironmentRegistryRoot(),
         selector,
         method,
         params,
@@ -132,7 +137,13 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
     orchestrationEnvironmentTransport,
     workspaceSleepPlatform: {
       callEnvironment: (environmentId, method, params, timeoutMs) =>
-        callRuntimeEnvironment(app.getPath('userData'), environmentId, method, params, timeoutMs),
+        callRuntimeEnvironment(
+          getRuntimeEnvironmentRegistryRoot(),
+          environmentId,
+          method,
+          params,
+          timeoutMs
+        ),
       suspendVm: (workspaceId) => suspendEphemeralVmWorkspace(store, workspaceId)
     },
     // Paired/local settings writes must reconcile the scanner child through the same path.
@@ -170,6 +181,12 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
   browserManager.setBrowserGuestStateChangedListener((worktreeId) => {
     runtime.notifyMobileSessionTabsChanged(worktreeId)
   })
+  browserManager.setOffscreenTabOpener((request) =>
+    openOffscreenBrowserPageLink(
+      (params, caller) => runtime.browserTabCreate(params, caller),
+      request
+    )
+  )
   browserSessionRegistry.onProfilesChanged = () => runtime.notifyBrowserProfilesChanged()
   return runtime
 }
