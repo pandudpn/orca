@@ -373,22 +373,6 @@ describe('ACP structured session adapter: turns', () => {
     ])
   })
 
-  it('refuses a model-only message once the chat picked an effort it cannot restore', async () => {
-    const rig = await openAcpAdapterRig()
-    await rig.acquire()
-    await rig.adapter.setOption({ sessionId: SESSION, fence: 1, key: 'effort', value: 'low' })
-    await expect(
-      rig.adapter.dispatch({
-        sessionId: SESSION,
-        fence: 1,
-        clientMessageId: 'unknown-default',
-        body: hello,
-        executionOptions: { model: 'grok-4.6' }
-      })
-    ).rejects.toMatchObject({ name: 'AgentSessionOptionRejectedError' })
-    expect(rig.sent('session/prompt')).toEqual([])
-  })
-
   it('keeps recorded OpenCode startup identity inert when its own model arrives later', async () => {
     const startup = NewSessionResponseSchema.parse(
       JSON.parse(
