@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getNativeChatAgentProfile,
   getVerifiedNativeChatCommands
-} from './native-chat-agent-profiles'
+} from '../native-chat-agent-profiles'
 import {
   applySlashSuggestion,
   classifyNativeChatSend,
@@ -41,7 +41,6 @@ describe('OMP terminal command catalog', () => {
     expect(applySlashSuggestion(command)).toBe('/model ')
     expect(slashCommandDispatchText(command)).toBe('/model')
   })
-
   it('classifies known OMP commands as terminal actions, preserving unknown and prose paths', () => {
     const commands = getAgentSlashCommands('omp')
     expect(classifyNativeChatSend('/compact focus on tests', commands, null, null)).toBe('command')
